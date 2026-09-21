@@ -58,6 +58,7 @@ function settings() {
 		'register_new_users'     => 1,
 		'link_by_verified_email' => 0,
 		'disable_password_login' => 0,
+		'remote_avatars'         => 0,
 	);
 
 	foreach ( array_keys( providers() ) as $slug ) {
@@ -290,6 +291,15 @@ function handle_callback( $slug, $provider ) {
 
 	update_user_meta( $user_id, META_PREFIX . $slug . '_id', $identity['sub'] );
 
+	// Stored whether or not the setting is on, so flipping it on takes effect
+	// immediately rather than after everyone has logged in again. Nothing reads
+	// it until then, and uninstall.php clears it.
+	if ( $identity['avatar'] ) {
+		update_user_meta( $user_id, META_PREFIX . 'avatar', esc_url_raw( $identity['avatar'] ) );
+	} else {
+		delete_user_meta( $user_id, META_PREFIX . 'avatar' );
+	}
+
 	wp_set_auth_cookie( $user_id, true );
 	do_action( 'wp_login', get_userdata( $user_id )->user_login, get_userdata( $user_id ) );
 
@@ -335,6 +345,32 @@ function in_discord_guild( $access_token, $guild_id ) {
 }
 
 /**
+ * Builds a Discord CDN avatar URL from the hash on the profile response.
+ *
+ * An `a_` prefix means an animated avatar, which is only served as a .gif.
+ *
+ * Accounts with no custom avatar return an empty string rather than Discord's
+ * default-avatar endpoint: falling through to whatever default the site has
+ * configured is both more consistent and one less URL to construct.
+ *
+ * @param string      $user_id Discord user ID.
+ * @param string|null $hash    Avatar hash, or null when the user has none.
+ * @return string
+ */
+function discord_avatar_url( $user_id, $hash ) {
+	if ( empty( $hash ) ) {
+		return '';
+	}
+
+	return sprintf(
+		'https://cdn.discordapp.com/avatars/%s/%s.%s',
+		rawurlencode( $user_id ),
+		rawurlencode( $hash ),
+		0 === strpos( $hash, 'a_' ) ? 'gif' : 'png'
+	);
+}
+
+/**
  * Flattens a provider's profile response into a common shape.
  *
  * @param string     $slug Provider slug.
@@ -359,6 +395,8 @@ function normalize_identity( $slug, $data ) {
 			'name'     => isset( $data['name'] ) ? $data['name'] : '',
 			'nickname' => isset( $data['email'] ) ? strstr( $data['email'], '@', true ) : '',
 			'team'     => isset( $data['https://slack.com/team_id'] ) ? $data['https://slack.com/team_id'] : '',
+			// Slack hands back a ready-made URL; Discord makes us build one.
+			'avatar'   => isset( $data['picture'] ) ? $data['picture'] : '',
 		);
 	}
 
@@ -373,6 +411,7 @@ function normalize_identity( $slug, $data ) {
 		'name'     => isset( $data['global_name'] ) ? $data['global_name'] : ( isset( $data['username'] ) ? $data['username'] : '' ),
 		'nickname' => isset( $data['username'] ) ? $data['username'] : '',
 		'team'     => '',
+		'avatar'   => discord_avatar_url( (string) $data['id'], isset( $data['avatar'] ) ? $data['avatar'] : null ),
 	);
 }
 
@@ -828,6 +867,72 @@ function maybe_unlink() {
 	exit;
 }
 
+// ----- Avatars -----
+
+add_filter( 'pre_get_avatar_data', __NAMESPACE__ . '\\remote_avatar', 10, 2 );
+
+/**
+ * Serves the avatar from the provider's CDN instead of Gravatar.
+ *
+ * Off by default: hotlinking the CDN leaks every visitor's IP address to
+ * Slack or Discord on any page that renders an avatar.
+ *
+ * @param array $args        Avatar data.
+ * @param mixed $id_or_email User ID, email, WP_User, WP_Post or WP_Comment.
+ * @return array
+ */
+function remote_avatar( $args, $id_or_email ) {
+	$settings = settings();
+
+	if ( empty( $settings['remote_avatars'] ) || ! empty( $args['force_default'] ) ) {
+		return $args;
+	}
+
+	$user_id = avatar_user_id( $id_or_email );
+	$url     = $user_id ? get_user_meta( $user_id, META_PREFIX . 'avatar', true ) : '';
+
+	if ( ! $url ) {
+		return $args;
+	}
+
+	$args['url']          = $url;
+	$args['found_avatar'] = true;
+
+	return $args;
+}
+
+/**
+ * Resolves whatever get_avatar_data() was handed into a user ID.
+ *
+ * @param mixed $id_or_email User ID, email, WP_User, WP_Post or WP_Comment.
+ * @return int 0 when it does not resolve to a user.
+ */
+function avatar_user_id( $id_or_email ) {
+	if ( is_numeric( $id_or_email ) ) {
+		return (int) $id_or_email;
+	}
+
+	if ( $id_or_email instanceof \WP_User ) {
+		return (int) $id_or_email->ID;
+	}
+
+	if ( $id_or_email instanceof \WP_Post ) {
+		return (int) $id_or_email->post_author;
+	}
+
+	if ( $id_or_email instanceof \WP_Comment ) {
+		return (int) $id_or_email->user_id;
+	}
+
+	if ( is_string( $id_or_email ) && is_email( $id_or_email ) ) {
+		$user = get_user_by( 'email', $id_or_email );
+
+		return $user ? (int) $user->ID : 0;
+	}
+
+	return 0;
+}
+
 // ----- Settings screen -----
 
 add_action( 'admin_init', __NAMESPACE__ . '\register_settings' );
@@ -858,6 +963,7 @@ function sanitize_settings( $input ) {
 		'register_new_users'     => empty( $input['register_new_users'] ) ? 0 : 1,
 		'link_by_verified_email' => empty( $input['link_by_verified_email'] ) ? 0 : 1,
 		'disable_password_login' => empty( $input['disable_password_login'] ) ? 0 : 1,
+		'remote_avatars'         => empty( $input['remote_avatars'] ) ? 0 : 1,
 	);
 
 	foreach ( array_keys( providers() ) as $slug ) {
@@ -905,6 +1011,13 @@ function render_settings_page() {
 						<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[register_new_users]" value="1" <?php checked( $settings['register_new_users'] ); ?>> <?php esc_html_e( 'Create a new WordPress account when an unknown person signs in', 'community-login-idp' ); ?></label><br>
 						<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[link_by_verified_email]" value="1" <?php checked( $settings['link_by_verified_email'] ); ?>> <?php esc_html_e( 'Automatically link to an existing account with the same verified email address', 'community-login-idp' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Only enable automatic linking if you trust the provider to verify email addresses — it lets anyone controlling that email sign in as the matching WordPress user.', 'community-login-idp' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Avatars', 'community-login-idp' ); ?></th>
+					<td>
+						<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[remote_avatars]" value="1" <?php checked( $settings['remote_avatars'] ); ?>> <?php esc_html_e( 'Use the profile picture from the provider', 'community-login-idp' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Images are hotlinked from Slack’s or Discord’s CDN, which tells them the IP address of every visitor who loads a page with an avatar on it — the same objection people raise about Gravatar. That is why this is off by default. Users with no linked provider, or no picture set there, keep the site’s normal avatar.', 'community-login-idp' ); ?></p>
 					</td>
 				</tr>
 				<tr>

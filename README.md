@@ -94,6 +94,14 @@ Two safety catches stop this from locking you out:
 
 Note that this controls *authentication*, not *access*. It does not make the site private — anonymous visitors can still read public content. If you want to require login to view the site at all, that is a separate plugin (such as Force Login) for now.
 
+## Avatars
+
+Off by default. Turn on **Use the profile picture from the provider** and avatars come from Slack's or Discord's CDN instead of Gravatar. The URL is refreshed on every sign-in, so changing your picture in the chat changes it here.
+
+Anyone without a linked provider, or without a picture set there, keeps the site's normal avatar — this only ever adds a source, it never removes one.
+
+It is off by default because hotlinking the provider's CDN tells Slack or Discord the IP address of every visitor who loads a page with an avatar on it, including visitors who have nothing to do with your community. That is the same objection people raise about Gravatar, so it is not a new category of problem, but it should be your decision rather than a default. Sideloading the images into the media library would avoid it at the cost of storage, staleness, and cleanup on uninstall; not worth it yet.
+
 ## Security notes
 
 - CSRF is handled by the OAuth `state` parameter, stored in a 10-minute transient and verified before any response data is read. The callback is an external redirect, so a WordPress nonce is not possible there.
@@ -124,7 +132,7 @@ composer run format # phpcbf
 
 ## What is deliberately left out
 
-- **Avatar/display-name syncing on every login.** Profile fields are set once at registration and then left alone.
+- **Display-name and email syncing on every login.** Profile fields are set once at registration and then left alone. Avatars are the exception — see below.
 - **Requiring login to view the site.** Authentication only; see the note above.
 - **SAML, generic OIDC, or any other provider.** Adding one is a new entry in `providers()` plus a branch in `normalize_identity()`.
 
