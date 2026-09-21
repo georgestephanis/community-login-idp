@@ -1,0 +1,221 @@
+# Copyright (C) 2026 George Stephanis
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Community Login IdP 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/community-login-idp\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-09-21T15:20:11+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: community-login-idp\n"
+
+#. Plugin Name of the plugin
+#: community-login-idp.php
+#: community-login-idp.php:882
+#: community-login-idp.php:897
+msgid "Community Login IdP"
+msgstr ""
+
+#. Plugin URI of the plugin
+#: community-login-idp.php
+msgid "https://github.com/georgestephanis/community-login-idp"
+msgstr ""
+
+#. Description of the plugin
+#: community-login-idp.php
+msgid "Log in and register with Slack or Discord as the identity provider."
+msgstr ""
+
+#. Author of the plugin
+#: community-login-idp.php
+msgid "George Stephanis"
+msgstr ""
+
+#: community-login-idp.php:507
+msgid "Authorization was cancelled."
+msgstr ""
+
+#: community-login-idp.php:508
+msgid "That login attempt expired. Please try again."
+msgstr ""
+
+#: community-login-idp.php:509
+msgid "That account is not a member of this community."
+msgstr ""
+
+#: community-login-idp.php:510
+msgid "We could not check your membership of this community. Please try again."
+msgstr ""
+
+#: community-login-idp.php:511
+msgid "An account already exists with that email address. Log in with your password, then link the account from your profile."
+msgstr ""
+
+#: community-login-idp.php:512
+msgid "That account is already linked to a different user."
+msgstr ""
+
+#: community-login-idp.php:513
+msgid "New registrations are closed."
+msgstr ""
+
+#: community-login-idp.php:514
+msgid "We could not get a verified email address from that account."
+msgstr ""
+
+#: community-login-idp.php:515
+msgid "That sign-in method is not available."
+msgstr ""
+
+#: community-login-idp.php:516
+msgid "We could not complete the sign-in with that service. If this keeps happening, check the client ID and secret in the plugin settings."
+msgstr ""
+
+#: community-login-idp.php:517
+msgid "That service did not tell us who you are. Please try again."
+msgstr ""
+
+#: community-login-idp.php:518
+msgid "Password sign-in is disabled on this site. Please use one of the options above."
+msgstr ""
+
+#: community-login-idp.php:522
+msgid "Sign-in failed. Please try again."
+msgstr ""
+
+#: community-login-idp.php:594
+msgid "<strong>Error:</strong> Password sign-in is disabled on this site. Use one of the sign-in buttons instead."
+msgstr ""
+
+#. translators: %s: provider name, e.g. Slack.
+#: community-login-idp.php:686
+#, php-format
+msgid "Continue with %s"
+msgstr ""
+
+#: community-login-idp.php:691
+msgid "or"
+msgstr ""
+
+#: community-login-idp.php:740
+msgid "Linked Accounts"
+msgstr ""
+
+#: community-login-idp.php:752
+msgid "This is the only linked account and password sign-in is disabled, so unlinking it would lock this user out. Link another provider first."
+msgstr ""
+
+#: community-login-idp.php:764
+msgid "Unlink"
+msgstr ""
+
+#: community-login-idp.php:779
+msgid "Link account"
+msgstr ""
+
+#: community-login-idp.php:783
+msgid "Not linked. Only this user can link their own account."
+msgstr ""
+
+#: community-login-idp.php:809
+msgid "You are not allowed to change linked accounts for this user."
+msgstr ""
+
+#: community-login-idp.php:815
+msgid "That is the only linked account and password sign-in is disabled, so unlinking it would lock this user out of the site. Link another provider first."
+msgstr ""
+
+#: community-login-idp.php:883
+msgid "Community Login"
+msgstr ""
+
+#: community-login-idp.php:903
+msgid "Registration"
+msgstr ""
+
+#: community-login-idp.php:905
+msgid "Create a new WordPress account when an unknown person signs in"
+msgstr ""
+
+#: community-login-idp.php:906
+msgid "Automatically link to an existing account with the same verified email address"
+msgstr ""
+
+#: community-login-idp.php:907
+msgid "Only enable automatic linking if you trust the provider to verify email addresses — it lets anyone controlling that email sign in as the matching WordPress user."
+msgstr ""
+
+#: community-login-idp.php:911
+msgid "Password sign-in"
+msgstr ""
+
+#: community-login-idp.php:913
+msgid "Disable username and password sign-in"
+msgstr ""
+
+#: community-login-idp.php:915
+msgid "Interactive logins must then go through a provider above. Application passwords keep working for the REST API and XML-RPC, so integrations are unaffected. Password resets are switched off too, since the resulting password could not be used."
+msgstr ""
+
+#: community-login-idp.php:918
+msgid "Before you enable this, link your own account to a provider."
+msgstr ""
+
+#. translators: %s: PHP constant definition to add to wp-config.php.
+#: community-login-idp.php:922
+#, php-format
+msgid "If a provider ever breaks, restore password sign-in by adding %s to wp-config.php."
+msgstr ""
+
+#: community-login-idp.php:935
+msgid "Enabled"
+msgstr ""
+
+#: community-login-idp.php:936
+msgid "Show a sign-in button for this provider"
+msgstr ""
+
+#: community-login-idp.php:939
+msgid "Client ID"
+msgstr ""
+
+#: community-login-idp.php:943
+msgid "Client Secret"
+msgstr ""
+
+#: community-login-idp.php:948
+msgid "Workspace ID"
+msgstr ""
+
+#: community-login-idp.php:951
+msgid "Optional. If set, only members of this Slack workspace may sign in."
+msgstr ""
+
+#: community-login-idp.php:957
+msgid "Server ID"
+msgstr ""
+
+#: community-login-idp.php:961
+msgid "Optional but strongly recommended. If set, only members of this Discord server may sign in. Leave it empty and any Discord account in the world can register."
+msgstr ""
+
+#: community-login-idp.php:963
+msgid "Turn on Developer Mode in Discord, then right-click the server and choose Copy Server ID. Setting this adds the “guilds” permission to the consent screen people see."
+msgstr ""
+
+#: community-login-idp.php:969
+msgid "Redirect URL"
+msgstr ""
+
+#: community-login-idp.php:971
+msgid "Add this exact URL to the provider app’s allowed redirect URLs."
+msgstr ""
+
+#: community-login-idp.php:992
+msgid "Settings"
+msgstr ""

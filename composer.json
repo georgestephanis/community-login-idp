@@ -19,6 +19,7 @@
 	"scripts": {
 		"lint": "phpcs",
 		"format": "phpcbf",
-		"test": "phpunit"
+		"test": "phpunit",
+		"make-pot": "wp i18n make-pot . languages/community-login-idp.pot --exclude=tests,node_modules,vendor,build"
 	}
 }
