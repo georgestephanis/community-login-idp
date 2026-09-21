@@ -42,8 +42,8 @@ https://example.com/wp-login.php?action=community-login-idp&provider=slack
 ### Slack
 
 1. Create an app at <https://api.slack.com/apps>.
-2. Under **OpenID Connect**, enable Sign in with Slack and add the redirect URL.
-3. Scopes are requested by the plugin (`openid email profile`); no bot token is needed.
+2. Under **OAuth & Permissions**, add the redirect URL, and add `openid`, `email` and `profile` as **User Token Scopes**. (Slack no longer shows a separate *OpenID Connect* screen on new apps; those three user scopes are what makes it an OIDC app. If the scope picker will not offer them, paste them into **Settings → App Manifest** instead.)
+3. No bot scopes and no bot token are needed.
 4. Copy the **Client ID** and **Client Secret** into the settings screen.
 5. Optionally set the **Workspace ID** (`T…`) to restrict sign-in to one workspace. It both pre-selects the workspace and is verified server-side after login.
 
