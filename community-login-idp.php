@@ -215,8 +215,10 @@ function start_authorization( $slug, $provider ) {
 		$args['team'] = $settings['slack']['team_id'];
 	}
 
+	// ponytail: http_build_query, not add_query_arg -- the latter does not encode
+	// values, so the redirect_uri's own query string would leak into this one.
 	// The whole point is to leave the site: this URL is the provider's, not ours.
-	wp_redirect( add_query_arg( $args, $provider['authorize'] ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+	wp_redirect( $provider['authorize'] . '?' . http_build_query( $args ) ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 	exit;
 }
 
@@ -546,7 +548,9 @@ function fail( $code, $redirect_to = '', $debug = null ) {
 	$args = array( 'clidp_error' => $code );
 
 	if ( $redirect_to ) {
-		$args['redirect_to'] = $redirect_to;
+		// add_query_arg() does not encode values, so a redirect_to with its own
+		// query string would otherwise leak into ours.
+		$args['redirect_to'] = rawurlencode( $redirect_to );
 	}
 
 	wp_safe_redirect( add_query_arg( $args, wp_login_url() ) );
@@ -745,7 +749,7 @@ function buttons_html() {
 			array(
 				'action'      => ACTION,
 				'provider'    => $slug,
-				'redirect_to' => $redirect_to ? $redirect_to : false,
+				'redirect_to' => $redirect_to ? rawurlencode( $redirect_to ) : false,
 			),
 			wp_login_url()
 		);
