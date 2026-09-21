@@ -1,0 +1,21 @@
+# Everything a running site does not need. Used by the release workflow to
+# assemble the distributable zip; keep it in step with .gitignore.
+.distignore
+.editorconfig
+.git/
+.github/
+.gitignore
+.nvmrc
+.phpcs.xml.dist
+.phpunit.result.cache
+AGENTS.md
+composer.json
+composer.lock
+dist/
+node_modules/
+package.json
+package-lock.json
+phpunit.xml.dist
+src/
+tests/
+vendor/
