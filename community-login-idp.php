@@ -131,6 +131,26 @@ function handle_request() {
 }
 
 /**
+ * The scopes to request for a provider.
+ *
+ * `guilds` is a noticeably heavier consent prompt than `identify email`, so it
+ * is only asked for when a server restriction is actually configured.
+ *
+ * @param string $slug     Provider slug.
+ * @param array  $provider Provider config.
+ * @return string
+ */
+function scope( $slug, $provider ) {
+	$settings = settings();
+
+	if ( 'discord' === $slug && ! empty( $settings['discord']['team_id'] ) ) {
+		return $provider['scope'] . ' guilds';
+	}
+
+	return $provider['scope'];
+}
+
+/**
  * Derives the S256 PKCE code challenge from a verifier.
  *
  * Base64url without padding, per RFC 7636.
@@ -167,7 +187,7 @@ function start_authorization( $slug, $provider ) {
 
 	$args = array(
 		'client_id'             => $settings[ $slug ]['client_id'],
-		'scope'                 => $provider['scope'],
+		'scope'                 => scope( $slug, $provider ),
 		'response_type'         => 'code',
 		'redirect_uri'          => redirect_uri( $slug ),
 		'state'                 => $state,
@@ -248,6 +268,19 @@ function handle_callback( $slug, $provider ) {
 		fail( 'wrong_team', $flow['redirect_to'], $identity['team'] );
 	}
 
+	// Discord has no equivalent claim, so membership costs an extra API call.
+	if ( 'discord' === $slug && ! empty( $settings['discord']['team_id'] ) ) {
+		$member = in_discord_guild( $token['access_token'], $settings['discord']['team_id'] );
+
+		if ( is_wp_error( $member ) ) {
+			fail( 'guild_check', $flow['redirect_to'], $member->get_error_message() );
+		}
+
+		if ( ! $member ) {
+			fail( 'wrong_team', $flow['redirect_to'], $identity['sub'] );
+		}
+	}
+
 	$user_id = resolve_user( $slug, $identity, (int) $flow['link_user'] );
 
 	if ( is_wp_error( $user_id ) ) {
@@ -262,6 +295,42 @@ function handle_callback( $slug, $provider ) {
 	$redirect_to = $flow['redirect_to'] ? $flow['redirect_to'] : admin_url();
 	wp_safe_redirect( apply_filters( 'login_redirect', $redirect_to, $redirect_to, get_userdata( $user_id ) ) );
 	exit;
+}
+
+/**
+ * Whether a Discord user belongs to a given server.
+ *
+ * Fails closed: a request that cannot be completed returns an error rather
+ * than a `false` that would read as "not a member", so the two are reported
+ * differently on the login form.
+ *
+ * @param string $access_token The user's access token.
+ * @param string $guild_id     Discord server (guild) ID.
+ * @return bool|\WP_Error
+ */
+function in_discord_guild( $access_token, $guild_id ) {
+	$response = wp_remote_get(
+		// ponytail: one page. Discord returns up to 200 guilds and caps a normal
+		// account at 100, so pagination only matters for Nitro users in 200+
+		// servers. Add the `after` cursor loop if that ever shows up in support.
+		'https://discord.com/api/users/@me/guilds',
+		array(
+			'timeout' => 15,
+			'headers' => array( 'Authorization' => 'Bearer ' . $access_token ),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return $response;
+	}
+
+	$guilds = json_decode( wp_remote_retrieve_body( $response ), true );
+
+	if ( ! is_array( $guilds ) ) {
+		return new \WP_Error( 'guild_check', wp_remote_retrieve_body( $response ) );
+	}
+
+	return in_array( (string) $guild_id, array_column( $guilds, 'id' ), true );
 }
 
 /**
@@ -437,6 +506,7 @@ function login_message( $message ) {
 		'denied'             => __( 'Authorization was cancelled.', 'community-login-idp' ),
 		'bad_state'          => __( 'That login attempt expired. Please try again.', 'community-login-idp' ),
 		'wrong_team'         => __( 'That account is not a member of this community.', 'community-login-idp' ),
+		'guild_check'        => __( 'We could not check your membership of this community. Please try again.', 'community-login-idp' ),
 		'email_taken'        => __( 'An account already exists with that email address. Log in with your password, then link the account from your profile.', 'community-login-idp' ),
 		'already_linked'     => __( 'That account is already linked to a different user.', 'community-login-idp' ),
 		'no_registration'    => __( 'New registrations are closed.', 'community-login-idp' ),
@@ -878,6 +948,19 @@ function render_settings_page() {
 							<td>
 								<input class="regular-text" id="slack-team-id" type="text" name="<?php echo esc_attr( OPTION . "[$slug][team_id]" ); ?>" value="<?php echo esc_attr( $settings[ $slug ]['team_id'] ); ?>" placeholder="T0123456789">
 								<p class="description"><?php esc_html_e( 'Optional. If set, only members of this Slack workspace may sign in.', 'community-login-idp' ); ?></p>
+							</td>
+						</tr>
+					<?php endif; ?>
+					<?php if ( 'discord' === $slug ) : ?>
+						<tr>
+							<th scope="row"><label for="discord-team-id"><?php esc_html_e( 'Server ID', 'community-login-idp' ); ?></label></th>
+							<td>
+								<input class="regular-text" id="discord-team-id" type="text" name="<?php echo esc_attr( OPTION . "[$slug][team_id]" ); ?>" value="<?php echo esc_attr( $settings[ $slug ]['team_id'] ); ?>" placeholder="123456789012345678">
+								<p class="description">
+									<?php esc_html_e( 'Optional but strongly recommended. If set, only members of this Discord server may sign in. Leave it empty and any Discord account in the world can register.', 'community-login-idp' ); ?>
+									<br>
+									<?php esc_html_e( 'Turn on Developer Mode in Discord, then right-click the server and choose Copy Server ID. Setting this adds the “guilds” permission to the consent screen people see.', 'community-login-idp' ); ?>
+								</p>
 							</td>
 						</tr>
 					<?php endif; ?>
