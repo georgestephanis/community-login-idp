@@ -94,6 +94,16 @@ Two safety catches stop this from locking you out:
 
 Note that this controls *authentication*, not *access*. It does not make the site private — anonymous visitors can still read public content. If you want to require login to view the site at all, that is a separate plugin (such as Force Login) for now.
 
+## Blocking someone
+
+When an account from the provider has to go, **Users → hover a row → Block Slack sign-in** (or Discord). That remote account can no longer authenticate, whatever else would otherwise let it in — it is checked before account lookup, linking or creation, so a blocked account cannot register a fresh WordPress user either.
+
+Blocking does not touch the WordPress user. The account stays, its content stays, and existing sessions are not terminated — delete or edit the user separately if that is what you want. The reasoning is that "stop them getting back in" and "erase them" are different decisions and should not be one button.
+
+Blocked accounts are listed at the bottom of **Settings → Community Login**, with an **Unblock** button. The list caches the display name and email as they were at the time of blocking, so it reads as people rather than as a wall of `U…` strings.
+
+The login form tells a blocked person only that the account cannot be used to sign in. That is deliberate: telling someone exactly why they are blocked tells them what to work around.
+
 ## Avatars
 
 Off by default. Turn on **Use the profile picture from the provider** and avatars come from Slack's or Discord's CDN instead of Gravatar. The URL is refreshed on every sign-in, so changing your picture in the chat changes it here.

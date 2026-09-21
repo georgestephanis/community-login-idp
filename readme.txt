@@ -18,6 +18,7 @@ For sites that sit alongside a community Slack workspace or Discord server. Peop
 * **Membership restriction.** Pin sign-in to one Slack workspace or one Discord server. Verified server-side on every sign-in, not just suggested in the picker.
 * **Account linking.** People with an existing WordPress account link a provider to it from their profile screen. Administrators can unlink, but linking is necessarily self-service — it authenticates whoever clicks it.
 * **Optional password deprecation.** Turn off username and password sign-in entirely, with two independent escape hatches so a broken provider cannot lock you out.
+* **Blocklist.** Block a remote account from authenticating at all, from a row action on the Users screen.
 * **Optional remote avatars.** Off by default; see the FAQ for the privacy tradeoff.
 * **Application passwords keep working** when password sign-in is off, so the REST API, XML-RPC and your integrations are unaffected.
 
@@ -92,6 +93,14 @@ Only if you trust the provider's email verification. It is off by default on pur
 
 With it off, a provider account whose email matches an existing user is refused, and the person is told to log in with their password and link from their profile screen instead. That proves they control both accounts.
 
+= How do I stop someone from signing in? =
+
+On **Users**, hover their row and choose **Block Slack sign-in** or **Block Discord sign-in**. That remote account can no longer authenticate, whatever else would otherwise let it in, and it cannot register a new WordPress account either.
+
+Blocking does not delete or change the WordPress user, and does not end an existing session — those are separate decisions, so they are separate actions. Blocked accounts are listed at the bottom of **Settings → Community Login** with an Unblock button.
+
+The person is told only that the account cannot be used to sign in. Telling them exactly why tells them what to work around.
+
 = Should I turn on remote avatars? =
 
 It is your call, which is why it is off by default. With it on, profile pictures are hotlinked from Slack's or Discord's CDN, which tells them the IP address of every visitor who loads a page with an avatar on it — including visitors who have nothing to do with your community. That is the same objection people raise about Gravatar, so it is not a new category of problem, but it should not be silently on.
@@ -155,3 +164,4 @@ The compiled stylesheet is missing. Install from a release zip, or run `npm inst
 * Account linking and unlinking from the profile screen.
 * Optional deprecation of username and password sign-in, with lockout escape hatches.
 * Optional remote avatars from the provider, off by default.
+* Blocklist for remote accounts, with a row action on the Users screen.

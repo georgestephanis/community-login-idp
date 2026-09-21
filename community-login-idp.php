@@ -24,6 +24,13 @@ const META_PREFIX = 'community_login_idp_';
 const ACTION      = 'community-login-idp';
 
 /**
+ * Moderation data, deliberately not inside the settings option: sanitize_settings()
+ * rebuilds that array from the submitted form, so a blocklist living there would
+ * be wiped every time someone pressed Save Changes.
+ */
+const BLOCKLIST = 'community_login_idp_blocklist';
+
+/**
  * Supported providers. Both are plain OAuth2 authorization-code flows, so the
  * only per-provider differences are endpoints, scopes and response shape.
  *
@@ -281,6 +288,11 @@ function handle_callback( $slug, $provider ) {
 		if ( ! $member ) {
 			fail( 'wrong_team', $flow['redirect_to'], $identity['sub'] );
 		}
+	}
+
+	// Before resolve_user(), so a blocked account never reaches creation or linking.
+	if ( is_blocked( $slug, $identity['sub'] ) ) {
+		fail( 'blocked', $flow['redirect_to'], $identity['sub'] );
 	}
 
 	$user_id = resolve_user( $slug, $identity, (int) $flow['link_user'] );
@@ -546,6 +558,9 @@ function login_message( $message ) {
 		'denied'             => __( 'Authorization was cancelled.', 'community-login-idp' ),
 		'bad_state'          => __( 'That login attempt expired. Please try again.', 'community-login-idp' ),
 		'wrong_team'         => __( 'That account is not a member of this community.', 'community-login-idp' ),
+		// Deliberately vague. Telling someone exactly why they are blocked tells
+		// them what to work around.
+		'blocked'            => __( 'That account cannot be used to sign in to this site.', 'community-login-idp' ),
 		'guild_check'        => __( 'We could not check your membership of this community. Please try again.', 'community-login-idp' ),
 		'email_taken'        => __( 'An account already exists with that email address. Log in with your password, then link the account from your profile.', 'community-login-idp' ),
 		'already_linked'     => __( 'That account is already linked to a different user.', 'community-login-idp' ),
@@ -867,9 +882,184 @@ function maybe_unlink() {
 	exit;
 }
 
+// ----- Blocklist -----
+
+/**
+ * Blocked remote accounts, keyed "<provider>:<remote id>".
+ *
+ * Display data is cached alongside the ID so the admin screen reads as people
+ * rather than as a wall of snowflakes and U… strings.
+ *
+ * ponytail: a single option. Fine for a few hundred entries; if a site ever
+ * needs more than that, this becomes a custom table and these four functions
+ * are the only things that have to change.
+ *
+ * @return array<string, array>
+ */
+function blocklist() {
+	$list = get_option( BLOCKLIST, array() );
+
+	return is_array( $list ) ? $list : array();
+}
+
+/**
+ * Whether a remote account is blocked from signing in.
+ *
+ * @param string $slug Provider slug.
+ * @param string $sub  Remote account ID.
+ * @return bool
+ */
+function is_blocked( $slug, $sub ) {
+	return isset( blocklist()[ $slug . ':' . $sub ] );
+}
+
+/**
+ * Blocks a remote account.
+ *
+ * @param string $slug     Provider slug.
+ * @param string $sub      Remote account ID.
+ * @param array  $identity Normalized identity, for the cached display data.
+ * @param string $reason   Optional note for whoever reads this later.
+ */
+function block_account( $slug, $sub, $identity = array(), $reason = '' ) {
+	$list = blocklist();
+
+	$list[ $slug . ':' . $sub ] = array(
+		'provider'   => $slug,
+		'sub'        => (string) $sub,
+		'name'       => isset( $identity['name'] ) ? $identity['name'] : '',
+		'nickname'   => isset( $identity['nickname'] ) ? $identity['nickname'] : '',
+		'email'      => isset( $identity['email'] ) ? $identity['email'] : '',
+		'avatar'     => isset( $identity['avatar'] ) ? $identity['avatar'] : '',
+		'reason'     => $reason,
+		'blocked_by' => get_current_user_id(),
+		'blocked_at' => time(),
+	);
+
+	update_option( BLOCKLIST, $list, false );
+}
+
+/**
+ * Unblocks a remote account.
+ *
+ * @param string $slug Provider slug.
+ * @param string $sub  Remote account ID.
+ */
+function unblock_account( $slug, $sub ) {
+	$list = blocklist();
+
+	unset( $list[ $slug . ':' . $sub ] );
+
+	update_option( BLOCKLIST, $list, false );
+}
+
+add_filter( 'user_row_actions', __NAMESPACE__ . '\user_row_actions', 10, 2 );
+
+/**
+ * Adds a Block sign-in row action on Users, which is where a moderator is
+ * actually standing when they decide someone has to go.
+ *
+ * @param array    $actions Row actions.
+ * @param \WP_User $user    The user the row is for.
+ * @return array
+ */
+function user_row_actions( $actions, $user ) {
+	if ( ! current_user_can( 'edit_users' ) || get_current_user_id() === (int) $user->ID ) {
+		return $actions;
+	}
+
+	foreach ( linked_providers( $user->ID ) as $slug ) {
+		$sub = get_user_meta( $user->ID, META_PREFIX . $slug . '_id', true );
+
+		if ( is_blocked( $slug, $sub ) ) {
+			continue;
+		}
+
+		$url = wp_nonce_url(
+			add_query_arg(
+				array(
+					'clidp_block' => $slug,
+					'user_id'     => $user->ID,
+				),
+				admin_url( 'users.php' )
+			),
+			'clidp_block_' . $slug . '_' . $user->ID
+		);
+
+		$actions[ 'clidp_block_' . $slug ] = sprintf(
+			'<a href="%s" style="color:#b32d2e">%s</a>',
+			esc_url( $url ),
+			esc_html(
+				sprintf(
+					/* translators: %s: provider name, e.g. Slack. */
+					__( 'Block %s sign-in', 'community-login-idp' ),
+					providers()[ $slug ]['label']
+				)
+			)
+		);
+	}
+
+	return $actions;
+}
+
+add_action( 'load-users.php', __NAMESPACE__ . '\maybe_block_from_users_screen' );
+
+/**
+ * Handles the Block sign-in row action.
+ */
+function maybe_block_from_users_screen() {
+	if ( empty( $_GET['clidp_block'] ) || empty( $_GET['user_id'] ) ) {
+		return;
+	}
+
+	$slug    = sanitize_key( wp_unslash( $_GET['clidp_block'] ) );
+	$user_id = (int) $_GET['user_id'];
+
+	check_admin_referer( 'clidp_block_' . $slug . '_' . $user_id );
+
+	if ( ! current_user_can( 'edit_user', $user_id ) || ! isset( providers()[ $slug ] ) ) {
+		wp_die( esc_html__( 'You are not allowed to do that.', 'community-login-idp' ) );
+	}
+
+	$sub  = get_user_meta( $user_id, META_PREFIX . $slug . '_id', true );
+	$user = get_userdata( $user_id );
+
+	if ( $sub && $user ) {
+		block_account(
+			$slug,
+			$sub,
+			array(
+				'name'     => $user->display_name,
+				'nickname' => $user->user_login,
+				'email'    => $user->user_email,
+				'avatar'   => get_user_meta( $user_id, META_PREFIX . 'avatar', true ),
+			)
+		);
+	}
+
+	wp_safe_redirect( add_query_arg( 'clidp_blocked', 1, admin_url( 'users.php' ) ) );
+	exit;
+}
+
+add_action( 'admin_notices', __NAMESPACE__ . '\blocked_notice' );
+
+/**
+ * Confirms a block, and says what it did and did not do.
+ */
+function blocked_notice() {
+	if ( empty( $_GET['clidp_blocked'] ) ) {
+		return;
+	}
+
+	printf(
+		'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
+		esc_html__( 'That account can no longer sign in. The WordPress user is untouched — delete it separately if you want it gone.', 'community-login-idp' )
+	);
+}
+
 // ----- Avatars -----
 
-add_filter( 'pre_get_avatar_data', __NAMESPACE__ . '\\remote_avatar', 10, 2 );
+add_filter( 'pre_get_avatar_data', __NAMESPACE__ . '\remote_avatar', 10, 2 );
 
 /**
  * Serves the avatar from the provider's CDN instead of Gravatar.
@@ -976,6 +1166,35 @@ function sanitize_settings( $input ) {
 	}
 
 	return $clean;
+}
+
+add_action( 'load-settings_page_community-login-idp', __NAMESPACE__ . '\maybe_unblock' );
+
+/**
+ * Handles the Unblock button on the settings screen.
+ */
+function maybe_unblock() {
+	if ( empty( $_GET['clidp_unblock'] ) ) {
+		return;
+	}
+
+	$key = sanitize_text_field( wp_unslash( $_GET['clidp_unblock'] ) );
+
+	check_admin_referer( 'clidp_unblock_' . $key );
+
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'You are not allowed to do that.', 'community-login-idp' ) );
+	}
+
+	$list  = blocklist();
+	$entry = isset( $list[ $key ] ) ? $list[ $key ] : false;
+
+	if ( $entry ) {
+		unblock_account( $entry['provider'], $entry['sub'] );
+	}
+
+	wp_safe_redirect( admin_url( 'options-general.php?page=community-login-idp' ) );
+	exit;
 }
 
 add_action( 'admin_menu', __NAMESPACE__ . '\add_settings_page' );
@@ -1089,7 +1308,84 @@ function render_settings_page() {
 
 			<?php submit_button(); ?>
 		</form>
+
+		<?php render_blocklist(); ?>
 	</div>
+	<?php
+}
+
+/**
+ * Lists blocked accounts, with a way back out.
+ */
+function render_blocklist() {
+	$list = blocklist();
+
+	if ( ! $list ) {
+		return;
+	}
+
+	$providers = providers();
+	?>
+	<h2><?php esc_html_e( 'Blocked accounts', 'community-login-idp' ); ?></h2>
+	<p class="description"><?php esc_html_e( 'These remote accounts cannot sign in, whatever else would otherwise let them. Block someone with the row action on the Users screen.', 'community-login-idp' ); ?></p>
+	<table class="widefat striped">
+		<thead>
+			<tr>
+				<th scope="col"><?php esc_html_e( 'Account', 'community-login-idp' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Provider', 'community-login-idp' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Blocked', 'community-login-idp' ); ?></th>
+				<th scope="col"><span class="screen-reader-text"><?php esc_html_e( 'Actions', 'community-login-idp' ); ?></span></th>
+			</tr>
+		</thead>
+		<tbody>
+			<?php foreach ( $list as $key => $entry ) : ?>
+				<?php
+				$blocker = get_userdata( $entry['blocked_by'] );
+				$url     = wp_nonce_url(
+					add_query_arg(
+						array(
+							'page'          => 'community-login-idp',
+							'clidp_unblock' => rawurlencode( $key ),
+						),
+						admin_url( 'options-general.php' )
+					),
+					'clidp_unblock_' . $key
+				);
+				?>
+				<tr>
+					<td>
+						<strong><?php echo esc_html( $entry['name'] ? $entry['name'] : $entry['sub'] ); ?></strong>
+						<?php if ( $entry['nickname'] ) : ?>
+							<br><?php echo esc_html( $entry['nickname'] ); ?>
+						<?php endif; ?>
+						<?php if ( $entry['email'] ) : ?>
+							<br><?php echo esc_html( $entry['email'] ); ?>
+						<?php endif; ?>
+						<br><code><?php echo esc_html( $entry['sub'] ); ?></code>
+					</td>
+					<td><?php echo esc_html( isset( $providers[ $entry['provider'] ] ) ? $providers[ $entry['provider'] ]['label'] : $entry['provider'] ); ?></td>
+					<td>
+						<?php
+						echo esc_html(
+							$blocker
+								? sprintf(
+									/* translators: 1: date, 2: display name of the user who blocked the account. */
+									__( '%1$s by %2$s', 'community-login-idp' ),
+									date_i18n( get_option( 'date_format' ), $entry['blocked_at'] ),
+									$blocker->display_name
+								)
+								: date_i18n( get_option( 'date_format' ), $entry['blocked_at'] )
+						);
+						?>
+						<?php if ( $entry['reason'] ) : ?>
+							<br><em><?php echo esc_html( $entry['reason'] ); ?></em>
+						<?php endif; ?>
+					</td>
+					<td><a class="button" href="<?php echo esc_url( $url ); ?>"><?php esc_html_e( 'Unblock', 'community-login-idp' ); ?></a></td>
+				</tr>
+			<?php endforeach; ?>
+		</tbody>
+	</table>
 	<?php
 }
 
