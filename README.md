@@ -49,6 +49,17 @@ https://example.com/wp-login.php?action=community-login-idp&provider=slack
 4. Copy the **Client ID** and **Client Secret** into the settings screen.
 5. Set the **Server ID** to restrict sign-in to members of one Discord server. Turn on **Developer Mode** (User Settings → Advanced), then right-click the server and choose **Copy Server ID**. Leave it empty and any Discord account in the world can register.
 
+### App tokens
+
+Both providers have an optional **App token** field. Nothing needs it to sign in — signing in uses the client ID and secret and the user's own token, and that token is discarded as soon as the profile is read.
+
+It exists for lookups the sign-in flow cannot make: things that need permissions the person signing in does not have, or that have to happen when they are not there. Whether a Slack account has been deactivated, or what a Discord role ID is actually called, for example.
+
+- **Slack** — a bot token (`xoxb-…`) from the app's **OAuth & Permissions** screen.
+- **Discord** — a bot token from the app's **Bot** screen.
+
+The token is checked against the provider when you save, and the result is shown under the field. A wrong or expired token should be a red line on a settings screen, not a login that mysteriously fails three weeks later.
+
 ## How accounts are matched
 
 On each sign-in, in order:

@@ -28,6 +28,7 @@ There is no `includes/`, no class hierarchy, and no autoloader. **Keep it that w
 - Settings live in one array option, `community_login_idp`, read through `settings()` so defaults are always present. Do not add a second settings option.
 - The blocklist is the one other option, `community_login_idp_blocklist`, and it is moderation data rather than settings. It has to live outside the settings option because `sanitize_settings()` rebuilds that array from the submitted form, which would wipe anything the form does not render.
 - Remote account IDs live in user meta `community_login_idp_<provider>_id`; the cached avatar URL in `community_login_idp_avatar`. Add anything new to `uninstall.php`.
+- `app_token` is the provider's own bot token, read through `app_token()`. It is for lookups the sign-in flow cannot make. The *user's* access token is still discarded at the end of `handle_callback()` and must stay that way — storing per-user tokens is a much larger question than storing one per site.
 - `team_id` is the per-provider membership restriction: a Slack workspace, a Discord server. Same key, different label on the settings screen.
 
 ## Adding a provider
