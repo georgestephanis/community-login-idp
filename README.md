@@ -11,8 +11,12 @@ Both providers use the same OAuth 2.0 authorization-code flow, so the plugin is 
 
 ## Install
 
+Download the zip from the [latest release](https://github.com/georgestephanis/community-login-idp/releases/latest) and install it through **Plugins → Add New → Upload Plugin**. Release zips have the stylesheet already compiled.
+
+To install from a clone instead, build the assets first — `build/` is not committed, and without it the sign-in buttons render unstyled:
+
 ```bash
-composer install   # dev tooling only (PHPCS/WPCS) — not needed at runtime
+composer install   # dev tooling only (PHPCS/WPCS/PHPUnit) — not needed at runtime
 npm install
 npm run build      # compiles src/ → build/, required for the button styles
 ```
@@ -95,6 +99,16 @@ Note that this controls *authentication*, not *access*. It does not make the sit
 - CSRF is handled by the OAuth `state` parameter, stored in a 10-minute transient and verified before any response data is read. The callback is an external redirect, so a WordPress nonce is not possible there.
 - Client secrets are stored in the `community_login_idp` option in plaintext, like every other WordPress OAuth plugin. If that is not acceptable, filter `pre_option_community_login_idp` to inject values from environment variables instead.
 - Disabling password sign-in (above) covers interactive logins only. Application passwords are intentionally left working; revoke those per-user under **Users → Profile** if you need to cut off API access too.
+
+## Releasing
+
+Tag and push:
+
+```bash
+git tag v0.2.0 && git push --tags
+```
+
+`.github/workflows/release.yml` builds the assets, assembles a zip of everything in `.distignore`'s complement, and attaches it to a generated GitHub release. That zip is also what WordPress.org would want.
 
 ## Development
 
