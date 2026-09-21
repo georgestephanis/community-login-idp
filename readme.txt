@@ -18,6 +18,7 @@ For sites that sit alongside a community Slack workspace or Discord server. Peop
 * **Membership restriction.** Pin sign-in to one Slack workspace or one Discord server. Verified server-side on every sign-in, not just suggested in the picker.
 * **Account linking.** People with an existing WordPress account link a provider to it from their profile screen. Administrators can unlink, but linking is necessarily self-service — it authenticates whoever clicks it.
 * **Optional password deprecation.** Turn off username and password sign-in entirely, with two independent escape hatches so a broken provider cannot lock you out.
+* **Optional private site.** Require login to view the site at all, with feeds, the REST API and a path allowlist as separate choices.
 * **Blocklist.** Block a remote account from authenticating at all, from a row action on the Users screen.
 * **Optional remote avatars.** Off by default; see the FAQ for the privacy tradeoff.
 * **Application passwords keep working** when password sign-in is off, so the REST API, XML-RPC and your integrations are unaffected.
@@ -85,7 +86,11 @@ If you also want to cut off a specific user's API access, revoke their applicati
 
 = Does this make my site private? =
 
-No. It controls *authentication* — who may log in and how. Anonymous visitors can still read whatever is publicly published. Making the site private is a separate concern and a separate plugin for now.
+Only if you ask it to. **Disable username and password sign-in** controls *authentication* — who may log in and how — and on its own leaves published content readable by anyone.
+
+**Site visibility → Require people to be logged in to view the site** is the other half, and it is off by default. With it on, logged-out visitors are sent to the login form.
+
+The login form and the provider callback always stay reachable, as do cron, admin-ajax, robots.txt and the favicon — so turning this on cannot lock you out or break scheduled tasks. Feeds and the REST API are separate checkboxes, both off by default, because closing them breaks things quietly: feeds stop updating in readers, and a closed REST API stops oEmbed previews of your posts elsewhere. There is also a path allowlist for pages that must stay public, one path per line, matched as a prefix.
 
 = Should I enable "automatically link to an existing account with the same verified email address"? =
 
@@ -172,3 +177,4 @@ The compiled stylesheet is missing. Install from a release zip, or run `npm inst
 * Optional remote avatars from the provider, off by default.
 * Blocklist for remote accounts, with a row action on the Users screen.
 * Configurable session length, defaulting to 48 hours.
+* Optional requirement to be logged in to view the site, off by default.

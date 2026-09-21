@@ -67,6 +67,10 @@ function settings() {
 		'disable_password_login' => 0,
 		'remote_avatars'         => 0,
 		'session_hours'          => 48,
+		'require_login'          => 0,
+		'require_login_feeds'    => 0,
+		'require_login_rest'     => 0,
+		'require_login_allow'    => '',
 	);
 
 	foreach ( array_keys( providers() ) as $slug ) {
@@ -895,6 +899,128 @@ function maybe_unlink() {
 	exit;
 }
 
+// ----- Requiring login to view the site -----
+
+add_action( 'template_redirect', __NAMESPACE__ . '\require_login', 0 );
+
+/**
+ * Bounces logged-out visitors to the login form.
+ *
+ * The template_redirect hook is the right one precisely because of what it
+ * does not run for: wp-login.php (so the login form and our own OAuth callback stay
+ * reachable), wp-admin, admin-ajax.php, wp-cron.php, XML-RPC and the REST
+ * API. Those need no exemptions here because they never reach this code.
+ *
+ * What does reach it, and so is exempted explicitly: robots.txt and the
+ * favicon, which WordPress serves through this hook.
+ */
+function require_login() {
+	$settings = settings();
+
+	if ( empty( $settings['require_login'] ) || is_user_logged_in() ) {
+		return;
+	}
+
+	// Serving a redirect for these breaks crawlers and browsers for no benefit;
+	// neither reveals anything about the site's content.
+	if ( is_robots() || is_favicon() ) {
+		return;
+	}
+
+	if ( is_feed() && empty( $settings['require_login_feeds'] ) ) {
+		return;
+	}
+
+	if ( path_is_allowed( wp_parse_url( request_path(), PHP_URL_PATH ), $settings['require_login_allow'] ) ) {
+		return;
+	}
+
+	/**
+	 * Lets a plugin exempt a request from the login requirement.
+	 *
+	 * An escape hatch in the same spirit as COMMUNITY_LOGIN_IDP_ALLOW_PASSWORDS:
+	 * a site-wide redirect will eventually collide with something, and the fix
+	 * should not have to be switching the feature off.
+	 *
+	 * @param bool $require Whether to require login for this request.
+	 */
+	if ( ! apply_filters( 'community_login_idp_require_login', true ) ) {
+		return;
+	}
+
+	wp_safe_redirect( wp_login_url( home_url( request_path() ) ) );
+	exit;
+}
+
+/**
+ * The path and query of the current request.
+ *
+ * @return string
+ */
+function request_path() {
+	return isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '/';
+}
+
+/**
+ * Whether a request path is on the allowlist.
+ *
+ * Entries are matched as prefixes, so `/shop` covers everything under it. A
+ * blank line or a comment is ignored so the textarea can be annotated.
+ *
+ * @param string $path      Request path, no query string.
+ * @param string $allowlist Newline-separated paths from the setting.
+ * @return bool
+ */
+function path_is_allowed( $path, $allowlist ) {
+	$path = '/' . ltrim( (string) $path, '/' );
+
+	foreach ( preg_split( '/\R/', (string) $allowlist ) as $line ) {
+		$line = trim( $line );
+
+		if ( '' === $line || 0 === strpos( $line, '#' ) ) {
+			continue;
+		}
+
+		$line = '/' . ltrim( $line, '/' );
+
+		if ( 0 === strpos( $path, $line ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+add_filter( 'rest_authentication_errors', __NAMESPACE__ . '\require_login_for_rest', 99 );
+
+/**
+ * Closes the REST API to logged-out requests, when asked to.
+ *
+ * Separate setting because closing it is not free: oEmbed of your posts
+ * elsewhere, and any theme or plugin that reads the API without a session,
+ * stop working.
+ *
+ * @param \WP_Error|null|true $result Result of the authentication stack so far.
+ * @return \WP_Error|null|true
+ */
+function require_login_for_rest( $result ) {
+	$settings = settings();
+
+	if ( ! empty( $result ) || is_user_logged_in() ) {
+		return $result;
+	}
+
+	if ( empty( $settings['require_login'] ) || empty( $settings['require_login_rest'] ) ) {
+		return $result;
+	}
+
+	return new \WP_Error(
+		'rest_not_logged_in',
+		__( 'You must be logged in to use the REST API on this site.', 'community-login-idp' ),
+		array( 'status' => 401 )
+	);
+}
+
 // ----- Blocklist -----
 
 /**
@@ -1169,6 +1295,10 @@ function sanitize_settings( $input ) {
 		'remote_avatars'         => empty( $input['remote_avatars'] ) ? 0 : 1,
 		// One hour to one year. Zero would mean a cookie that expires immediately.
 		'session_hours'          => max( 1, min( 8760, isset( $input['session_hours'] ) ? (int) $input['session_hours'] : 48 ) ),
+		'require_login'          => empty( $input['require_login'] ) ? 0 : 1,
+		'require_login_feeds'    => empty( $input['require_login_feeds'] ) ? 0 : 1,
+		'require_login_rest'     => empty( $input['require_login_rest'] ) ? 0 : 1,
+		'require_login_allow'    => isset( $input['require_login_allow'] ) ? sanitize_textarea_field( $input['require_login_allow'] ) : '',
 	);
 
 	foreach ( array_keys( providers() ) as $slug ) {
@@ -1245,6 +1375,25 @@ function render_settings_page() {
 						<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[register_new_users]" value="1" <?php checked( $settings['register_new_users'] ); ?>> <?php esc_html_e( 'Create a new WordPress account when an unknown person signs in', 'community-login-idp' ); ?></label><br>
 						<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[link_by_verified_email]" value="1" <?php checked( $settings['link_by_verified_email'] ); ?>> <?php esc_html_e( 'Automatically link to an existing account with the same verified email address', 'community-login-idp' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Only enable automatic linking if you trust the provider to verify email addresses — it lets anyone controlling that email sign in as the matching WordPress user.', 'community-login-idp' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><?php esc_html_e( 'Site visibility', 'community-login-idp' ); ?></th>
+					<td>
+						<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[require_login]" value="1" <?php checked( $settings['require_login'] ); ?>> <?php esc_html_e( 'Require people to be logged in to view the site', 'community-login-idp' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Logged-out visitors are sent to the login form. The login form itself, the provider callback, cron and the admin-ajax endpoint stay reachable, as do robots.txt and the favicon.', 'community-login-idp' ); ?></p>
+
+						<p style="margin-top:1em">
+							<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[require_login_feeds]" value="1" <?php checked( $settings['require_login_feeds'] ); ?>> <?php esc_html_e( 'Also require login for RSS and Atom feeds', 'community-login-idp' ); ?></label><br>
+							<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[require_login_rest]" value="1" <?php checked( $settings['require_login_rest'] ); ?>> <?php esc_html_e( 'Also require login for the REST API', 'community-login-idp' ); ?></label>
+						</p>
+						<p class="description"><?php esc_html_e( 'Both are off by default because closing them breaks things quietly: feeds stop updating in readers, and a closed REST API stops oEmbed previews of your posts elsewhere along with any theme or plugin that reads the API without a session. Application passwords keep working either way.', 'community-login-idp' ); ?></p>
+
+						<p style="margin-top:1em">
+							<label for="require-login-allow"><?php esc_html_e( 'Always allow these paths:', 'community-login-idp' ); ?></label><br>
+							<textarea id="require-login-allow" class="large-text code" rows="4" name="<?php echo esc_attr( OPTION ); ?>[require_login_allow]" placeholder="/about&#10;/contact"><?php echo esc_textarea( $settings['require_login_allow'] ); ?></textarea>
+						</p>
+						<p class="description"><?php esc_html_e( 'One per line, matched as a prefix — /shop covers everything under it. Blank lines and lines starting with # are ignored.', 'community-login-idp' ); ?></p>
 					</td>
 				</tr>
 				<tr>

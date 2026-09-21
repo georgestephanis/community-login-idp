@@ -94,7 +94,32 @@ Two safety catches stop this from locking you out:
 
 **Link your own account to a provider before turning this on.**
 
-Note that this controls *authentication*, not *access*. It does not make the site private — anonymous visitors can still read public content. If you want to require login to view the site at all, that is a separate plugin (such as Force Login) for now.
+Note that this controls *authentication*, not *access*. It does not make the site private on its own — see **Requiring login to view the site** below for that.
+
+## Requiring login to view the site
+
+Off by default. **Settings → Community Login → Site visibility → Require people to be logged in to view the site** sends logged-out visitors to the login form.
+
+This is the *access* half of the pair; disabling password sign-in above is the *authentication* half. A private community site usually wants both.
+
+The redirect hangs off `template_redirect`, which is the right hook mostly for what it does **not** run for — so these need no exemption and cannot be broken by one:
+
+- `wp-login.php`, including the provider callback URL. The way in stays reachable.
+- `wp-admin`, `admin-ajax.php`, `wp-cron.php` and XML-RPC.
+
+Two things do run through that hook and are exempted explicitly: `robots.txt` and the favicon. Redirecting those breaks crawlers and browsers and reveals nothing.
+
+**Feeds and the REST API are separate checkboxes, both off.** Closing them breaks things quietly — feeds stop updating in readers, and a closed REST API stops oEmbed previews of your posts on other sites along with any theme or plugin that reads the API without a session. Application passwords keep working either way, so authenticated integrations are unaffected.
+
+**The path allowlist** takes one path per line, matched as a prefix, so `/shop` covers everything under it. Blank lines and lines starting with `#` are ignored, so you can annotate it.
+
+If it collides with something, exempt that request rather than switching the feature off:
+
+```php
+add_filter( 'community_login_idp_require_login', function ( $require ) {
+	return is_page( 'press-kit' ) ? false : $require;
+} );
+```
 
 ## Session length
 

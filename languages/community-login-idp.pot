@@ -9,15 +9,15 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-09-21T15:33:50+00:00\n"
+"POT-Creation-Date: 2026-09-21T15:35:52+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: community-login-idp\n"
 
 #. Plugin Name of the plugin
 #: community-login-idp.php
-#: community-login-idp.php:1222
-#: community-login-idp.php:1237
+#: community-login-idp.php:1352
+#: community-login-idp.php:1367
 msgid "Community Login IdP"
 msgstr ""
 
@@ -36,263 +36,299 @@ msgstr ""
 msgid "George Stephanis"
 msgstr ""
 
-#: community-login-idp.php:571
+#: community-login-idp.php:575
 msgid "Authorization was cancelled."
 msgstr ""
 
-#: community-login-idp.php:572
+#: community-login-idp.php:576
 msgid "That login attempt expired. Please try again."
 msgstr ""
 
-#: community-login-idp.php:573
+#: community-login-idp.php:577
 msgid "That account is not a member of this community."
 msgstr ""
 
-#: community-login-idp.php:576
+#: community-login-idp.php:580
 msgid "That account cannot be used to sign in to this site."
 msgstr ""
 
-#: community-login-idp.php:577
+#: community-login-idp.php:581
 msgid "We could not check your membership of this community. Please try again."
 msgstr ""
 
-#: community-login-idp.php:578
+#: community-login-idp.php:582
 msgid "An account already exists with that email address. Log in with your password, then link the account from your profile."
 msgstr ""
 
-#: community-login-idp.php:579
+#: community-login-idp.php:583
 msgid "That account is already linked to a different user."
 msgstr ""
 
-#: community-login-idp.php:580
+#: community-login-idp.php:584
 msgid "New registrations are closed."
 msgstr ""
 
-#: community-login-idp.php:581
+#: community-login-idp.php:585
 msgid "We could not get a verified email address from that account."
 msgstr ""
 
-#: community-login-idp.php:582
+#: community-login-idp.php:586
 msgid "That sign-in method is not available."
 msgstr ""
 
-#: community-login-idp.php:583
+#: community-login-idp.php:587
 msgid "We could not complete the sign-in with that service. If this keeps happening, check the client ID and secret in the plugin settings."
 msgstr ""
 
-#: community-login-idp.php:584
+#: community-login-idp.php:588
 msgid "That service did not tell us who you are. Please try again."
 msgstr ""
 
-#: community-login-idp.php:585
+#: community-login-idp.php:589
 msgid "Password sign-in is disabled on this site. Please use one of the options above."
 msgstr ""
 
-#: community-login-idp.php:589
+#: community-login-idp.php:593
 msgid "Sign-in failed. Please try again."
 msgstr ""
 
-#: community-login-idp.php:661
+#: community-login-idp.php:665
 msgid "<strong>Error:</strong> Password sign-in is disabled on this site. Use one of the sign-in buttons instead."
 msgstr ""
 
 #. translators: %s: provider name, e.g. Slack.
-#: community-login-idp.php:753
+#: community-login-idp.php:757
 #, php-format
 msgid "Continue with %s"
 msgstr ""
 
-#: community-login-idp.php:758
+#: community-login-idp.php:762
 msgid "or"
 msgstr ""
 
-#: community-login-idp.php:807
+#: community-login-idp.php:811
 msgid "Linked Accounts"
 msgstr ""
 
-#: community-login-idp.php:819
+#: community-login-idp.php:823
 msgid "This is the only linked account and password sign-in is disabled, so unlinking it would lock this user out. Link another provider first."
 msgstr ""
 
-#: community-login-idp.php:831
+#: community-login-idp.php:835
 msgid "Unlink"
 msgstr ""
 
-#: community-login-idp.php:846
+#: community-login-idp.php:850
 msgid "Link account"
 msgstr ""
 
-#: community-login-idp.php:850
+#: community-login-idp.php:854
 msgid "Not linked. Only this user can link their own account."
 msgstr ""
 
-#: community-login-idp.php:876
+#: community-login-idp.php:880
 msgid "You are not allowed to change linked accounts for this user."
 msgstr ""
 
-#: community-login-idp.php:882
+#: community-login-idp.php:886
 msgid "That is the only linked account and password sign-in is disabled, so unlinking it would lock this user out of the site. Link another provider first."
 msgstr ""
 
+#: community-login-idp.php:1019
+msgid "You must be logged in to use the REST API on this site."
+msgstr ""
+
 #. translators: %s: provider name, e.g. Slack.
-#: community-login-idp.php:1008
+#: community-login-idp.php:1134
 #, php-format
 msgid "Block %s sign-in"
 msgstr ""
 
-#: community-login-idp.php:1034
-#: community-login-idp.php:1201
+#: community-login-idp.php:1160
+#: community-login-idp.php:1331
 msgid "You are not allowed to do that."
 msgstr ""
 
-#: community-login-idp.php:1069
+#: community-login-idp.php:1195
 msgid "That account can no longer sign in. The WordPress user is untouched — delete it separately if you want it gone."
 msgstr ""
 
-#: community-login-idp.php:1223
+#: community-login-idp.php:1353
 msgid "Community Login"
 msgstr ""
 
-#: community-login-idp.php:1243
+#: community-login-idp.php:1373
 msgid "Registration"
 msgstr ""
 
-#: community-login-idp.php:1245
+#: community-login-idp.php:1375
 msgid "Create a new WordPress account when an unknown person signs in"
 msgstr ""
 
-#: community-login-idp.php:1246
+#: community-login-idp.php:1376
 msgid "Automatically link to an existing account with the same verified email address"
 msgstr ""
 
-#: community-login-idp.php:1247
+#: community-login-idp.php:1377
 msgid "Only enable automatic linking if you trust the provider to verify email addresses — it lets anyone controlling that email sign in as the matching WordPress user."
 msgstr ""
 
-#: community-login-idp.php:1251
+#: community-login-idp.php:1381
+msgid "Site visibility"
+msgstr ""
+
+#: community-login-idp.php:1383
+msgid "Require people to be logged in to view the site"
+msgstr ""
+
+#: community-login-idp.php:1384
+msgid "Logged-out visitors are sent to the login form. The login form itself, the provider callback, cron and the admin-ajax endpoint stay reachable, as do robots.txt and the favicon."
+msgstr ""
+
+#: community-login-idp.php:1387
+msgid "Also require login for RSS and Atom feeds"
+msgstr ""
+
+#: community-login-idp.php:1388
+msgid "Also require login for the REST API"
+msgstr ""
+
+#: community-login-idp.php:1390
+msgid "Both are off by default because closing them breaks things quietly: feeds stop updating in readers, and a closed REST API stops oEmbed previews of your posts elsewhere along with any theme or plugin that reads the API without a session. Application passwords keep working either way."
+msgstr ""
+
+#: community-login-idp.php:1393
+msgid "Always allow these paths:"
+msgstr ""
+
+#: community-login-idp.php:1396
+msgid "One per line, matched as a prefix — /shop covers everything under it. Blank lines and lines starting with # are ignored."
+msgstr ""
+
+#: community-login-idp.php:1400
 msgid "Session length"
 msgstr ""
 
-#: community-login-idp.php:1254
+#: community-login-idp.php:1403
 msgid "hours"
 msgstr ""
 
-#: community-login-idp.php:1255
+#: community-login-idp.php:1404
 msgid "How long someone stays signed in after using a provider button. Membership of the workspace or server is only rechecked when they sign in again, so this is also how long someone keeps access after leaving your community. The default, 48 hours, matches WordPress’ own."
 msgstr ""
 
-#: community-login-idp.php:1259
+#: community-login-idp.php:1408
 msgid "Avatars"
 msgstr ""
 
-#: community-login-idp.php:1261
+#: community-login-idp.php:1410
 msgid "Use the profile picture from the provider"
 msgstr ""
 
-#: community-login-idp.php:1262
+#: community-login-idp.php:1411
 msgid "Images are hotlinked from Slack’s or Discord’s CDN, which tells them the IP address of every visitor who loads a page with an avatar on it — the same objection people raise about Gravatar. That is why this is off by default. Users with no linked provider, or no picture set there, keep the site’s normal avatar."
 msgstr ""
 
-#: community-login-idp.php:1266
+#: community-login-idp.php:1415
 msgid "Password sign-in"
 msgstr ""
 
-#: community-login-idp.php:1268
+#: community-login-idp.php:1417
 msgid "Disable username and password sign-in"
 msgstr ""
 
-#: community-login-idp.php:1270
+#: community-login-idp.php:1419
 msgid "Interactive logins must then go through a provider above. Application passwords keep working for the REST API and XML-RPC, so integrations are unaffected. Password resets are switched off too, since the resulting password could not be used."
 msgstr ""
 
-#: community-login-idp.php:1273
+#: community-login-idp.php:1422
 msgid "Before you enable this, link your own account to a provider."
 msgstr ""
 
 #. translators: %s: PHP constant definition to add to wp-config.php.
-#: community-login-idp.php:1277
+#: community-login-idp.php:1426
 #, php-format
 msgid "If a provider ever breaks, restore password sign-in by adding %s to wp-config.php."
 msgstr ""
 
-#: community-login-idp.php:1290
+#: community-login-idp.php:1439
 msgid "Enabled"
 msgstr ""
 
-#: community-login-idp.php:1291
+#: community-login-idp.php:1440
 msgid "Show a sign-in button for this provider"
 msgstr ""
 
-#: community-login-idp.php:1294
+#: community-login-idp.php:1443
 msgid "Client ID"
 msgstr ""
 
-#: community-login-idp.php:1298
+#: community-login-idp.php:1447
 msgid "Client Secret"
 msgstr ""
 
-#: community-login-idp.php:1303
+#: community-login-idp.php:1452
 msgid "Workspace ID"
 msgstr ""
 
-#: community-login-idp.php:1306
+#: community-login-idp.php:1455
 msgid "Optional. If set, only members of this Slack workspace may sign in."
 msgstr ""
 
-#: community-login-idp.php:1312
+#: community-login-idp.php:1461
 msgid "Server ID"
 msgstr ""
 
-#: community-login-idp.php:1316
+#: community-login-idp.php:1465
 msgid "Optional but strongly recommended. If set, only members of this Discord server may sign in. Leave it empty and any Discord account in the world can register."
 msgstr ""
 
-#: community-login-idp.php:1318
+#: community-login-idp.php:1467
 msgid "Turn on Developer Mode in Discord, then right-click the server and choose Copy Server ID. Setting this adds the “guilds” permission to the consent screen people see."
 msgstr ""
 
-#: community-login-idp.php:1324
+#: community-login-idp.php:1473
 msgid "Redirect URL"
 msgstr ""
 
-#: community-login-idp.php:1326
+#: community-login-idp.php:1475
 msgid "Add this exact URL to the provider app’s allowed redirect URLs."
 msgstr ""
 
-#: community-login-idp.php:1352
+#: community-login-idp.php:1501
 msgid "Blocked accounts"
 msgstr ""
 
-#: community-login-idp.php:1353
+#: community-login-idp.php:1502
 msgid "These remote accounts cannot sign in, whatever else would otherwise let them. Block someone with the row action on the Users screen."
 msgstr ""
 
-#: community-login-idp.php:1357
+#: community-login-idp.php:1506
 msgid "Account"
 msgstr ""
 
-#: community-login-idp.php:1358
+#: community-login-idp.php:1507
 msgid "Provider"
 msgstr ""
 
-#: community-login-idp.php:1359
+#: community-login-idp.php:1508
 msgid "Blocked"
 msgstr ""
 
-#: community-login-idp.php:1360
+#: community-login-idp.php:1509
 msgid "Actions"
 msgstr ""
 
 #. translators: 1: date, 2: display name of the user who blocked the account.
-#: community-login-idp.php:1396
+#: community-login-idp.php:1545
 #, php-format
 msgid "%1$s by %2$s"
 msgstr ""
 
-#: community-login-idp.php:1407
+#: community-login-idp.php:1556
 msgid "Unblock"
 msgstr ""
 
-#: community-login-idp.php:1424
+#: community-login-idp.php:1573
 msgid "Settings"
 msgstr ""
