@@ -131,6 +131,18 @@ function handle_request() {
 }
 
 /**
+ * Derives the S256 PKCE code challenge from a verifier.
+ *
+ * Base64url without padding, per RFC 7636.
+ *
+ * @param string $verifier Code verifier.
+ * @return string
+ */
+function pkce_challenge( $verifier ) {
+	return rtrim( strtr( base64_encode( hash( 'sha256', $verifier, true ) ), '+/', '-_' ), '=' ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- RFC 7636 requires base64url here.
+}
+
+/**
  * Sends the visitor off to the provider.
  *
  * @param string $slug     Provider slug.
@@ -139,6 +151,8 @@ function handle_request() {
 function start_authorization( $slug, $provider ) {
 	$settings = settings();
 	$state    = wp_generate_password( 32, false );
+	// Alphanumeric, so it is already within PKCE's unreserved character set.
+	$verifier = wp_generate_password( 64, false );
 
 	set_transient(
 		'clidp_state_' . $state,
@@ -146,16 +160,19 @@ function start_authorization( $slug, $provider ) {
 			'provider'    => $slug,
 			'redirect_to' => isset( $_GET['redirect_to'] ) ? esc_url_raw( wp_unslash( $_GET['redirect_to'] ) ) : '',
 			'link_user'   => get_current_user_id(),
+			'verifier'    => $verifier,
 		),
 		10 * MINUTE_IN_SECONDS
 	);
 
 	$args = array(
-		'client_id'     => $settings[ $slug ]['client_id'],
-		'scope'         => $provider['scope'],
-		'response_type' => 'code',
-		'redirect_uri'  => redirect_uri( $slug ),
-		'state'         => $state,
+		'client_id'             => $settings[ $slug ]['client_id'],
+		'scope'                 => $provider['scope'],
+		'response_type'         => 'code',
+		'redirect_uri'          => redirect_uri( $slug ),
+		'state'                 => $state,
+		'code_challenge'        => pkce_challenge( $verifier ),
+		'code_challenge_method' => 'S256',
 	);
 
 	// Slack lets us pin the workspace picker to a single team.
@@ -199,6 +216,7 @@ function handle_callback( $slug, $provider ) {
 				'redirect_uri'  => redirect_uri( $slug ),
 				'client_id'     => $settings[ $slug ]['client_id'],
 				'client_secret' => $settings[ $slug ]['client_secret'],
+				'code_verifier' => isset( $flow['verifier'] ) ? $flow['verifier'] : '',
 			),
 		)
 	);
