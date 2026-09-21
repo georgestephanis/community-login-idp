@@ -43,6 +43,7 @@ Everything else — settings fields, buttons, the flow — is generic and needs 
 
 - Do not add a dependency for something a few lines of core WordPress already does. `wp_remote_post` is the HTTP client; there is no OAuth library here and there should not be one.
 - Do not loosen the `state` check in `handle_callback()`. It is the only CSRF protection the callback can have.
+- Do not narrow the exemptions in `require_login()`. It hangs off `template_redirect` specifically because wp-login.php, the OAuth callback, cron, admin-ajax and XML-RPC never reach that hook; robots.txt and the favicon do and are exempted by hand. Moving it to an earlier hook to "catch more" is how a private-site feature locks everyone out.
 - Do not remove either lockout guard in `passwords_disabled()` — the "at least one active provider" check and the `COMMUNITY_LOGIN_IDP_ALLOW_PASSWORDS` constant. They are the only way back into a site whose provider broke.
 - Do not block application passwords when password sign-in is disabled. `is_api_request()` deliberately mirrors core so API access keeps working.
 - Do not make "link by verified email" default to on. It is an account-takeover vector if the provider's verification is weak, which is why it is an explicit opt-in with a warning.
