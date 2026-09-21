@@ -24,3 +24,37 @@
 		background: #5865f2;
 	}
 }
+
+// The buttons render above #loginform, so the divider reads as
+// "providers, or, the password form below".
+.clidp-divider {
+	display: flex;
+	align-items: center;
+	gap: 0.75em;
+	margin: 1.25em 0 0;
+	color: #50575e;
+	font-size: 0.9em;
+	text-transform: uppercase;
+
+	&::before,
+	&::after {
+		flex: 1;
+		height: 1px;
+		background: #dcdcde;
+		content: "";
+	}
+}
+
+// Local passwords are switched off: hide the password form and the
+// register / lost-password links so the buttons are the only way in.
+body.clidp-passwords-disabled {
+
+	#loginform,
+	#nav {
+		display: none;
+	}
+
+	.clidp-buttons {
+		margin-top: 0;
+	}
+}

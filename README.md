@@ -53,13 +53,47 @@ On each sign-in, in order:
 
 Otherwise the attempt is rejected with a message on the login form.
 
-Users can link and unlink providers themselves from **Users → Profile**.
+## Linking accounts from the profile screen
+
+**Users → Profile** has a *Linked Accounts* section. Linking there runs the same OAuth flow, but because the person is already logged in it attaches the provider account to *their* account and skips every matching rule above.
+
+That means **the email addresses do not have to match.** If your Slack email differs from your WordPress email, link from the profile screen once and every later sign-in goes through the stored account ID, not the email.
+
+To swap to a different remote account: unlink, then link again and authorize as the other account.
+
+Two guards apply:
+
+- An account already linked to a different WordPress user cannot be linked twice.
+- If password sign-in is disabled, the last remaining link cannot be removed — that would lock the account out with no way back in. Link another provider first.
+
+Administrators see the same section on other users' profiles, but **unlink only**. Linking authenticates whoever is clicking, so it is necessarily self-service.
+
+## Making the provider the only way in
+
+Enable **Disable username and password sign-in** in the settings to deprecate local passwords. When it is on:
+
+- Interactive sign-in must go through a configured provider. The password form and the register / lost-password links are hidden.
+- **Application passwords keep working** for the REST API and XML-RPC, so scripts and integrations are unaffected. The plugin uses core's own `application_password_is_api_request` definition to decide what counts as an API request.
+- Password resets are disabled, since the resulting password could not be used to log in.
+
+Two safety catches stop this from locking you out:
+
+1. It has no effect unless at least one provider is enabled and has credentials.
+2. Adding this to `wp-config.php` restores password sign-in unconditionally:
+
+   ```php
+   define( 'COMMUNITY_LOGIN_IDP_ALLOW_PASSWORDS', true );
+   ```
+
+**Link your own account to a provider before turning this on.**
+
+Note that this controls *authentication*, not *access*. It does not make the site private — anonymous visitors can still read public content. If you want to require login to view the site at all, that is a separate plugin (such as Force Login) for now.
 
 ## Security notes
 
 - CSRF is handled by the OAuth `state` parameter, stored in a 10-minute transient and verified before any response data is read. The callback is an external redirect, so a WordPress nonce is not possible there.
 - Client secrets are stored in the `community_login_idp` option in plaintext, like every other WordPress OAuth plugin. If that is not acceptable, filter `pre_option_community_login_idp` to inject values from environment variables instead.
-- The plugin does **not** disable password login. Combine with a plugin that does if you want the provider to be the only way in.
+- Disabling password sign-in (above) covers interactive logins only. Application passwords are intentionally left working; revoke those per-user under **Users → Profile** if you need to cut off API access too.
 
 ## Development
 
@@ -77,6 +111,7 @@ composer run format # phpcbf
 
 - **Discord guild (server) restriction** — needs the `guilds` scope plus another API call. Slack's workspace check covers the equivalent case; add the Discord one when someone actually needs it.
 - **Avatar/display-name syncing on every login.** Profile fields are set once at registration and then left alone.
+- **Requiring login to view the site.** Authentication only; see the note above.
 - **SAML, generic OIDC, or any other provider.** Adding one is a new entry in `providers()` plus a branch in `normalize_identity()`.
 
 ## License
