@@ -93,6 +93,12 @@ Only if you trust the provider's email verification. It is off by default on pur
 
 With it off, a provider account whose email matches an existing user is refused, and the person is told to log in with their password and link from their profile screen instead. That proves they control both accounts.
 
+= How long do people stay signed in? =
+
+48 hours by default — the same as a WordPress login without *Remember Me*. Change it under **Settings → Community Login → Session length**.
+
+Worth thinking about, because membership of your Slack workspace or Discord server is only checked when someone signs in. The session length is therefore also how long someone keeps access after leaving your community. A long session is convenient and slow to revoke; a short one is the reverse.
+
 = How do I stop someone from signing in? =
 
 On **Users**, hover their row and choose **Block Slack sign-in** or **Block Discord sign-in**. That remote account can no longer authenticate, whatever else would otherwise let it in, and it cannot register a new WordPress account either.
@@ -165,3 +171,4 @@ The compiled stylesheet is missing. Install from a release zip, or run `npm inst
 * Optional deprecation of username and password sign-in, with lockout escape hatches.
 * Optional remote avatars from the provider, off by default.
 * Blocklist for remote accounts, with a row action on the Users screen.
+* Configurable session length, defaulting to 48 hours.

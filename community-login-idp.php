@@ -66,6 +66,7 @@ function settings() {
 		'link_by_verified_email' => 0,
 		'disable_password_login' => 0,
 		'remote_avatars'         => 0,
+		'session_hours'          => 48,
 	);
 
 	foreach ( array_keys( providers() ) as $slug ) {
@@ -311,6 +312,18 @@ function handle_callback( $slug, $provider ) {
 	} else {
 		delete_user_meta( $user_id, META_PREFIX . 'avatar' );
 	}
+
+	// Scoped to this one cookie: we redirect and exit immediately below, so this
+	// never touches a password login or anything else in another request.
+	$hours = (int) $settings['session_hours'];
+
+	add_filter(
+		'auth_cookie_expiration',
+		static function () use ( $hours ) {
+			return $hours * HOUR_IN_SECONDS;
+		},
+		99
+	);
 
 	wp_set_auth_cookie( $user_id, true );
 	do_action( 'wp_login', get_userdata( $user_id )->user_login, get_userdata( $user_id ) );
@@ -1154,6 +1167,8 @@ function sanitize_settings( $input ) {
 		'link_by_verified_email' => empty( $input['link_by_verified_email'] ) ? 0 : 1,
 		'disable_password_login' => empty( $input['disable_password_login'] ) ? 0 : 1,
 		'remote_avatars'         => empty( $input['remote_avatars'] ) ? 0 : 1,
+		// One hour to one year. Zero would mean a cookie that expires immediately.
+		'session_hours'          => max( 1, min( 8760, isset( $input['session_hours'] ) ? (int) $input['session_hours'] : 48 ) ),
 	);
 
 	foreach ( array_keys( providers() ) as $slug ) {
@@ -1230,6 +1245,14 @@ function render_settings_page() {
 						<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[register_new_users]" value="1" <?php checked( $settings['register_new_users'] ); ?>> <?php esc_html_e( 'Create a new WordPress account when an unknown person signs in', 'community-login-idp' ); ?></label><br>
 						<label><input type="checkbox" name="<?php echo esc_attr( OPTION ); ?>[link_by_verified_email]" value="1" <?php checked( $settings['link_by_verified_email'] ); ?>> <?php esc_html_e( 'Automatically link to an existing account with the same verified email address', 'community-login-idp' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Only enable automatic linking if you trust the provider to verify email addresses — it lets anyone controlling that email sign in as the matching WordPress user.', 'community-login-idp' ); ?></p>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="session-hours"><?php esc_html_e( 'Session length', 'community-login-idp' ); ?></label></th>
+					<td>
+						<input id="session-hours" class="small-text" type="number" min="1" max="8760" step="1" name="<?php echo esc_attr( OPTION ); ?>[session_hours]" value="<?php echo esc_attr( $settings['session_hours'] ); ?>">
+						<?php esc_html_e( 'hours', 'community-login-idp' ); ?>
+						<p class="description"><?php esc_html_e( 'How long someone stays signed in after using a provider button. Membership of the workspace or server is only rechecked when they sign in again, so this is also how long someone keeps access after leaving your community. The default, 48 hours, matches WordPress’ own.', 'community-login-idp' ); ?></p>
 					</td>
 				</tr>
 				<tr>
