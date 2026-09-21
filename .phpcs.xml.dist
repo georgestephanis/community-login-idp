@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<ruleset name="Community Login IdP">
+	<description>Coding standards for the Community Login IdP plugin.</description>
+
+	<file>.</file>
+	<exclude-pattern>/vendor/*</exclude-pattern>
+	<exclude-pattern>/node_modules/*</exclude-pattern>
+	<exclude-pattern>/build/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="basepath" value="."/>
+	<arg name="colors"/>
+	<arg value="ps"/>
+
+	<rule ref="WordPress">
+		<!-- Namespaced functions, not class files. -->
+		<exclude name="WordPress.Files.FileName"/>
+		<!--
+			The OAuth callback is a redirect from an external provider, so it can
+			carry no nonce. The signed `state` parameter is the CSRF token here,
+			and it is verified against a transient before anything is read.
+		-->
+		<exclude name="WordPress.Security.NonceVerification.Recommended"/>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="community-login-idp"/>
+			</property>
+		</properties>
+	</rule>
+
+	<config name="minimum_wp_version" value="6.0"/>
+	<config name="testVersion" value="7.4-"/>
+	<rule ref="PHPCompatibilityWP"/>
+</ruleset>
