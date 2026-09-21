@@ -39,6 +39,8 @@ https://example.com/wp-login.php?action=community-login-idp&provider=slack
 4. Copy the **Client ID** and **Client Secret** into the settings screen.
 5. Optionally set the **Workspace ID** (`T…`) to restrict sign-in to one workspace. It both pre-selects the workspace and is verified server-side after login.
 
+**Finding your Workspace ID.** Open Slack in a browser and read it out of the URL — `app.slack.com/client/T0123456789/…`. The `T…` part is the workspace ID. The same value appears in the address bar under **Settings & administration → Workspace settings**.
+
 ### Discord
 
 1. Create an application at <https://discord.com/developers/applications>.
@@ -111,6 +113,26 @@ Off by default. Turn on **Use the profile picture from the provider** and avatar
 Anyone without a linked provider, or without a picture set there, keeps the site's normal avatar — this only ever adds a source, it never removes one.
 
 It is off by default because hotlinking the provider's CDN tells Slack or Discord the IP address of every visitor who loads a page with an avatar on it, including visitors who have nothing to do with your community. That is the same objection people raise about Gravatar, so it is not a new category of problem, but it should be your decision rather than a default. Sideloading the images into the media library would avoid it at the cost of storage, staleness, and cleanup on uninstall; not worth it yet.
+
+## Troubleshooting
+
+Failures come back to the login form with a message. Turn on `WP_DEBUG` and the provider's raw error body is written to the PHP error log prefixed `[community-login-idp]` — usually the fastest route to the real cause, since the messages below are deliberately non-specific to the person seeing them.
+
+| Message | What it means |
+|---|---|
+| *We could not complete the sign-in with that service.* | The token exchange failed. Almost always a wrong **Client ID** or **Client Secret**, or a **Redirect URL** that does not match the one registered with the provider character for character — including `http` vs `https` and any `www`. |
+| *That service did not tell us who you are.* | The token worked, the profile request did not return a usable profile. Check the app's scopes: Slack needs `openid email profile`, Discord `identify email`. |
+| *That account is not a member of this community.* | The account is not in the configured Slack workspace or Discord server. Check the **Workspace ID** / **Server ID**, and that they really are a member. |
+| *We could not check your membership of this community.* | Discord only. The membership lookup itself failed — a network problem or a Discord outage, not a rejection. Retrying usually works. |
+| *That login attempt expired.* | More than ten minutes between starting and finishing, or the state transient was dropped. If it happens constantly, suspect an object cache dropping transients or a page cache serving the login page. |
+| *An account already exists with that email address.* | A WordPress user already has that email and automatic email linking is off. Log in with the password and link from the profile screen — see [How accounts are matched](#how-accounts-are-matched). |
+| *That account is already linked to a different user.* | One remote account maps to one WordPress user. Unlink it from the other user first. |
+| *We could not get a verified email address from that account.* | Registration needs one. Slack only returns an email for confirmed workspace members; Discord only when the address is verified. |
+| *New registrations are closed.* | **Create a new WordPress account…** is off in the settings, and this person has no existing account to match. |
+| *That account cannot be used to sign in to this site.* | The remote account is on the blocklist. See **Settings → Community Login**. |
+| *That sign-in method is not available.* | The provider is disabled, or missing a client ID or secret. |
+
+The buttons render unstyled if `build/` is missing — install from a [release zip](https://github.com/georgestephanis/community-login-idp/releases/latest), or run `npm install && npm run build`.
 
 ## Security notes
 
