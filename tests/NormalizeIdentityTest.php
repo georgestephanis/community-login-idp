@@ -35,6 +35,22 @@ class NormalizeIdentityTest extends TestCase {
 		$this->assertSame( 'Some One', $identity['name'] );
 		$this->assertSame( 'someone', $identity['nickname'] );
 		$this->assertSame( 'T0123456789', $identity['team'] );
+		$this->assertSame( '', $identity['avatar'] );
+	}
+
+	/**
+	 * Slack hands back a ready-made URL on the `picture` claim.
+	 */
+	public function test_slack_avatar() {
+		$identity = normalize_identity(
+			'slack',
+			array(
+				'sub'     => 'U012ABCDEF',
+				'picture' => 'https://secure.gravatar.com/avatar/abc.jpg',
+			)
+		);
+
+		$this->assertSame( 'https://secure.gravatar.com/avatar/abc.jpg', $identity['avatar'] );
 	}
 
 	/**
@@ -84,6 +100,25 @@ class NormalizeIdentityTest extends TestCase {
 		$this->assertSame( 'Some One', $identity['name'] );
 		$this->assertSame( 'someone', $identity['nickname'] );
 		$this->assertSame( '', $identity['team'] );
+		$this->assertSame( '', $identity['avatar'] );
+	}
+
+	/**
+	 * The hash on the profile response becomes a CDN URL.
+	 */
+	public function test_discord_avatar() {
+		$identity = normalize_identity(
+			'discord',
+			array(
+				'id'     => '80351110224678912',
+				'avatar' => '8342729096ea3675442027381ff50dfe',
+			)
+		);
+
+		$this->assertSame(
+			'https://cdn.discordapp.com/avatars/80351110224678912/8342729096ea3675442027381ff50dfe.png',
+			$identity['avatar']
+		);
 	}
 
 	/**
