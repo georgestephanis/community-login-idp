@@ -9,6 +9,7 @@
 .phpcs.xml.dist
 .phpunit.result.cache
 AGENTS.md
+blueprint.json
 composer.json
 composer.lock
 dist/

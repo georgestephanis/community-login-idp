@@ -1,5 +1,7 @@
 # Community Login IdP
 
+[![Try in WordPress Playground](https://img.shields.io/badge/Try%20it-WordPress%20Playground-3858E9?logo=wordpress&logoColor=white)](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/georgestephanis/community-login-idp/trunk/blueprint.json)
+
 A WordPress plugin that lets people register and log in with **Slack** or **Discord** as the identity provider. Useful when your site sits alongside a community chat and you want membership there to be the source of truth for accounts here.
 
 Both providers use the same OAuth 2.0 authorization-code flow, so the plugin is one generic flow plus a small table of endpoints.
@@ -22,6 +24,12 @@ npm run build      # compiles src/ → build/, required for the button styles
 ```
 
 Then activate the plugin and go to **Settings → Community Login**.
+
+### Try it without installing anything
+
+The badge at the top boots a throwaway WordPress in your browser, installs this plugin straight from `trunk`, and drops you on the settings screen. It runs [`blueprint.json`](blueprint.json) — edit that file and Playground picks up the change on the next boot.
+
+Two things to know: the sandbox is gone when you close the tab, and the sign-in buttons render unstyled there because `build/` is not committed. It is enough to see the settings screen and the login form, not to complete a real OAuth round trip — the redirect URL changes on every boot, so you would be re-registering the provider app each time.
 
 ## Setting up the provider apps
 
