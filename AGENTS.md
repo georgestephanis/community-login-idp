@@ -46,4 +46,6 @@ Everything else — settings fields, buttons, the flow — is generic and needs 
 
 ## Testing
 
-There is no test suite. Verify by hand against a local site (Local by WPEngine) with a real Slack/Discord app pointed at the printed redirect URL — the flow is almost entirely I/O against a third party, so unit tests would test the mocks. If you add non-trivial pure logic (e.g. identity normalization edge cases), a small test for that function is welcome.
+`composer run test` runs PHPUnit against `tests/`. The bootstrap stubs the few WordPress functions the plugin calls at file scope and loads the plugin directly, so there is no WordPress test install to set up.
+
+Only pure logic is tested — `normalize_identity()` today. The flow is almost entirely I/O against a third party, so tests of the rest would test the mocks. Verify that by hand against a local site (Local by WPEngine) with a real Slack/Discord app pointed at the printed redirect URL. If you add non-trivial pure logic, add a test for it.

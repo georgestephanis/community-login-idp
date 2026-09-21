@@ -8,7 +8,8 @@
 	},
 	"require-dev": {
 		"wp-coding-standards/wpcs": "^3.1",
-		"phpcompatibility/phpcompatibility-wp": "^2.1"
+		"phpcompatibility/phpcompatibility-wp": "^2.1",
+		"phpunit/phpunit": "^9.6"
 	},
 	"config": {
 		"allow-plugins": {
@@ -17,6 +18,7 @@
 	},
 	"scripts": {
 		"lint": "phpcs",
-		"format": "phpcbf"
+		"format": "phpcbf",
+		"test": "phpunit"
 	}
 }
