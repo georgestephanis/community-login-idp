@@ -39,8 +39,9 @@ https://example.com/wp-login.php?action=community-login-idp&provider=slack
 
 1. Create an application at <https://discord.com/developers/applications>.
 2. Under **OAuth2**, add the redirect URL.
-3. Scopes are requested by the plugin (`identify email`).
+3. Scopes are requested by the plugin (`identify email`, plus `guilds` when a Server ID is set).
 4. Copy the **Client ID** and **Client Secret** into the settings screen.
+5. Set the **Server ID** to restrict sign-in to members of one Discord server. Turn on **Developer Mode** (User Settings → Advanced), then right-click the server and choose **Copy Server ID**. Leave it empty and any Discord account in the world can register.
 
 ## How accounts are matched
 
@@ -109,7 +110,6 @@ composer run format # phpcbf
 
 ## What is deliberately left out
 
-- **Discord guild (server) restriction** — needs the `guilds` scope plus another API call. Slack's workspace check covers the equivalent case; add the Discord one when someone actually needs it.
 - **Avatar/display-name syncing on every login.** Profile fields are set once at registration and then left alone.
 - **Requiring login to view the site.** Authentication only; see the note above.
 - **SAML, generic OIDC, or any other provider.** Adding one is a new entry in `providers()` plus a branch in `normalize_identity()`.

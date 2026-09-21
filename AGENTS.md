@@ -25,6 +25,7 @@ There is no `includes/`, no class hierarchy, and no autoloader. **Keep it that w
 - Escape on output (`esc_html`, `esc_attr`, `esc_url`), sanitize on input, text domain `community-login-idp` on every user-facing string.
 - Options live in one array option, `community_login_idp`, read through `settings()` so defaults are always present. Do not add a second option.
 - Remote account IDs live in user meta `community_login_idp_<provider>_id`.
+- `team_id` is the per-provider membership restriction: a Slack workspace, a Discord server. Same key, different label on the settings screen.
 
 ## Adding a provider
 
