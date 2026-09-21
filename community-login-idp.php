@@ -79,6 +79,7 @@ function settings() {
 			'client_id'     => '',
 			'client_secret' => '',
 			'team_id'       => '',
+			'app_token'     => '',
 		);
 	}
 
@@ -899,6 +900,94 @@ function maybe_unlink() {
 	exit;
 }
 
+// ----- App tokens -----
+
+/**
+ * The stored app/bot token for a provider.
+ *
+ * Deliberately not the user's own access token: that is discarded at the end
+ * of handle_callback() and nothing stores it. This is the app's token, set by
+ * an administrator, used for lookups that have to happen without the user
+ * present or with permissions the user does not have.
+ *
+ * @param string $slug Provider slug.
+ * @return string
+ */
+function app_token( $slug ) {
+	$settings = settings();
+
+	return isset( $settings[ $slug ]['app_token'] ) ? $settings[ $slug ]['app_token'] : '';
+}
+
+/**
+ * Asks the provider whether a token is any good.
+ *
+ * @param string $slug  Provider slug.
+ * @param string $token Token to check.
+ * @return array{ok: bool, message: string}
+ */
+function validate_app_token( $slug, $token ) {
+	if ( '' === $token ) {
+		return array(
+			'ok'      => false,
+			'message' => '',
+		);
+	}
+
+	if ( 'slack' === $slug ) {
+		$response = wp_remote_post(
+			'https://slack.com/api/auth.test',
+			array(
+				'timeout' => 15,
+				'headers' => array( 'Authorization' => 'Bearer ' . $token ),
+			)
+		);
+	} else {
+		$response = wp_remote_get(
+			'https://discord.com/api/users/@me',
+			array(
+				'timeout' => 15,
+				'headers' => array( 'Authorization' => 'Bot ' . $token ),
+			)
+		);
+	}
+
+	if ( is_wp_error( $response ) ) {
+		return array(
+			'ok'      => false,
+			'message' => $response->get_error_message(),
+		);
+	}
+
+	$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+	if ( 'slack' === $slug ) {
+		return empty( $body['ok'] )
+			? array(
+				'ok'      => false,
+				/* translators: %s: error code returned by Slack, e.g. invalid_auth. */
+				'message' => sprintf( __( 'Slack rejected it: %s', 'community-login-idp' ), isset( $body['error'] ) ? $body['error'] : __( 'unknown error', 'community-login-idp' ) ),
+			)
+			: array(
+				'ok'      => true,
+				/* translators: %s: name of the Slack workspace the token belongs to. */
+				'message' => sprintf( __( 'Connected to %s.', 'community-login-idp' ), isset( $body['team'] ) ? $body['team'] : __( 'your workspace', 'community-login-idp' ) ),
+			);
+	}
+
+	return empty( $body['id'] )
+		? array(
+			'ok'      => false,
+			/* translators: %s: error message returned by Discord. */
+			'message' => sprintf( __( 'Discord rejected it: %s', 'community-login-idp' ), isset( $body['message'] ) ? $body['message'] : __( 'unknown error', 'community-login-idp' ) ),
+		)
+		: array(
+			'ok'      => true,
+			/* translators: %s: username of the bot the token belongs to. */
+			'message' => sprintf( __( 'Connected as %s.', 'community-login-idp' ), isset( $body['username'] ) ? $body['username'] : __( 'your bot', 'community-login-idp' ) ),
+		);
+}
+
 // ----- Requiring login to view the site -----
 
 add_action( 'template_redirect', __NAMESPACE__ . '\require_login', 0 );
@@ -1288,7 +1377,8 @@ function register_settings() {
  * @return array
  */
 function sanitize_settings( $input ) {
-	$clean = array(
+	$settings = settings();
+	$clean    = array(
 		'register_new_users'     => empty( $input['register_new_users'] ) ? 0 : 1,
 		'link_by_verified_email' => empty( $input['link_by_verified_email'] ) ? 0 : 1,
 		'disable_password_login' => empty( $input['disable_password_login'] ) ? 0 : 1,
@@ -1307,7 +1397,14 @@ function sanitize_settings( $input ) {
 			'client_id'     => isset( $input[ $slug ]['client_id'] ) ? sanitize_text_field( $input[ $slug ]['client_id'] ) : '',
 			'client_secret' => isset( $input[ $slug ]['client_secret'] ) ? sanitize_text_field( $input[ $slug ]['client_secret'] ) : '',
 			'team_id'       => isset( $input[ $slug ]['team_id'] ) ? sanitize_text_field( $input[ $slug ]['team_id'] ) : '',
+			'app_token'     => isset( $input[ $slug ]['app_token'] ) ? trim( sanitize_text_field( $input[ $slug ]['app_token'] ) ) : '',
 		);
+
+		// Check it while someone is standing here able to fix it, rather than
+		// letting a stale token surface as a failed login weeks later.
+		if ( $clean[ $slug ]['app_token'] !== $settings[ $slug ]['app_token'] ) {
+			set_transient( 'clidp_token_check_' . $slug, validate_app_token( $slug, $clean[ $slug ]['app_token'] ), DAY_IN_SECONDS );
+		}
 	}
 
 	return $clean;
@@ -1469,6 +1566,29 @@ function render_settings_page() {
 							</td>
 						</tr>
 					<?php endif; ?>
+					<tr>
+						<th scope="row"><label for="<?php echo esc_attr( "$slug-app-token" ); ?>"><?php esc_html_e( 'App token', 'community-login-idp' ); ?></label></th>
+						<td>
+							<input class="regular-text" id="<?php echo esc_attr( "$slug-app-token" ); ?>" type="password" name="<?php echo esc_attr( OPTION . "[$slug][app_token]" ); ?>" value="<?php echo esc_attr( $settings[ $slug ]['app_token'] ); ?>" autocomplete="new-password" placeholder="<?php echo esc_attr( 'slack' === $slug ? 'xoxb-…' : '' ); ?>">
+							<?php $check = get_transient( 'clidp_token_check_' . $slug ); ?>
+							<?php if ( is_array( $check ) && $check['message'] ) : ?>
+								<p class="description" style="color:<?php echo $check['ok'] ? '#008a20' : '#b32d2e'; ?>">
+									<?php echo esc_html( $check['message'] ); ?>
+								</p>
+							<?php endif; ?>
+							<p class="description">
+								<?php
+								echo esc_html(
+									'slack' === $slug
+										? __( 'Optional. A bot token from the app’s OAuth & Permissions screen. Not needed to sign in — it is for lookups the sign-in flow cannot make, such as whether an account has been deactivated.', 'community-login-idp' )
+										: __( 'Optional. A bot token from the app’s Bot screen. Not needed to sign in — it is for lookups the sign-in flow cannot make, such as turning role IDs into names.', 'community-login-idp' )
+								);
+								?>
+								<br>
+								<?php esc_html_e( 'It is checked against the provider when you save.', 'community-login-idp' ); ?>
+							</p>
+						</td>
+					</tr>
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Redirect URL', 'community-login-idp' ); ?></th>
 						<td><code><?php echo esc_html( redirect_uri( $slug ) ); ?></code>

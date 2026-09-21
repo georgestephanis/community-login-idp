@@ -54,6 +54,14 @@ On each sign-in, in order:
 
 == Frequently Asked Questions ==
 
+= What is the App token field for? =
+
+Nothing needs it to sign in, and you can leave it empty. Signing in uses the Client ID and Secret, plus the token the person signing in gets, which is discarded as soon as their profile has been read.
+
+The App token is the *app's* own token — a bot token, from **OAuth & Permissions** in Slack or the **Bot** screen in Discord. It is there for lookups the sign-in flow cannot make: ones needing permissions the person signing in does not have, or that have to happen when they are not there.
+
+It is checked against the provider when you save, and the result is shown under the field.
+
 = Where do I find my Slack Workspace ID? =
 
 It is the `T…` value. The quickest way: open Slack in a browser and read it out of the URL — `app.slack.com/client/T0123456789/…`. The part starting with `T` is the workspace ID.
