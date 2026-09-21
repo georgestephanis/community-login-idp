@@ -96,6 +96,12 @@ Two safety catches stop this from locking you out:
 
 Note that this controls *authentication*, not *access*. It does not make the site private — anonymous visitors can still read public content. If you want to require login to view the site at all, that is a separate plugin (such as Force Login) for now.
 
+## Session length
+
+**Settings → Community Login → Session length** controls how long someone stays signed in after using a provider button. It defaults to 48 hours, the same as a WordPress login without *Remember Me*.
+
+This matters more than it looks. Workspace and server membership is only checked during sign-in, so the session length is also how long someone keeps access to the site *after* leaving your community. A fourteen-day session means a fortnight of access for someone you removed on day one. Shorten it if that matters; lengthen it if you would rather not make people sign in often.
+
 ## Blocking someone
 
 When an account from the provider has to go, **Users → hover a row → Block Slack sign-in** (or Discord). That remote account can no longer authenticate, whatever else would otherwise let it in — it is checked before account lookup, linking or creation, so a blocked account cannot register a fresh WordPress user either.
