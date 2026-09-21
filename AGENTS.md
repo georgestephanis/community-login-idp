@@ -10,7 +10,7 @@ A single-file WordPress plugin: Slack and Discord as OAuth identity providers fo
 
 ```
 community-login-idp.php   the entire plugin — flow, buttons, profile UI, settings
-uninstall.php             option + user meta cleanup
+uninstall.php             option + user meta cleanup — add every new key here
 languages/                generated .pot — run `composer run make-pot` after touching strings
 tests/                    PHPUnit, no WordPress install needed
 src/style.scss            login button styles (compiled by wp-scripts)
@@ -25,7 +25,8 @@ There is no `includes/`, no class hierarchy, and no autoloader. **Keep it that w
 - WordPress Coding Standards, enforced by `.phpcs.xml.dist`. Run `composer run lint` before finishing; `composer run format` fixes most of it.
 - JS/CSS go through `@wordpress/scripts`: `npm run lint:js`, `npm run lint:css`, `npm run build`.
 - Escape on output (`esc_html`, `esc_attr`, `esc_url`), sanitize on input, text domain `community-login-idp` on every user-facing string. Regenerate `languages/community-login-idp.pot` with `composer run make-pot` when you add or change one.
-- Options live in one array option, `community_login_idp`, read through `settings()` so defaults are always present. Do not add a second option.
+- Settings live in one array option, `community_login_idp`, read through `settings()` so defaults are always present. Do not add a second settings option.
+- The blocklist is the one other option, `community_login_idp_blocklist`, and it is moderation data rather than settings. It has to live outside the settings option because `sanitize_settings()` rebuilds that array from the submitted form, which would wipe anything the form does not render.
 - Remote account IDs live in user meta `community_login_idp_<provider>_id`; the cached avatar URL in `community_login_idp_avatar`. Add anything new to `uninstall.php`.
 - `team_id` is the per-provider membership restriction: a Slack workspace, a Discord server. Same key, different label on the settings screen.
 
