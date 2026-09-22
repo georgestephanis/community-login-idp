@@ -44,6 +44,10 @@ function providers() {
 			'token'     => 'https://slack.com/api/openid.connect.token',
 			'userinfo'  => 'https://slack.com/api/openid.connect.userInfo',
 			'scope'     => 'openid email profile',
+			// Slack's OIDC endpoints do not document PKCE: the authorize leg
+			// ignores code_challenge, and the token leg answers a request
+			// carrying code_verifier with {"ok":false,"error":"internal_error"}.
+			'pkce'      => false,
 		),
 		'discord' => array(
 			'label'     => 'Discord',
@@ -51,6 +55,7 @@ function providers() {
 			'token'     => 'https://discord.com/api/oauth2/token',
 			'userinfo'  => 'https://discord.com/api/users/@me',
 			'scope'     => 'identify email',
+			'pkce'      => true,
 		),
 	);
 }
@@ -201,14 +206,17 @@ function start_authorization( $slug, $provider ) {
 	);
 
 	$args = array(
-		'client_id'             => $settings[ $slug ]['client_id'],
-		'scope'                 => scope( $slug, $provider ),
-		'response_type'         => 'code',
-		'redirect_uri'          => redirect_uri( $slug ),
-		'state'                 => $state,
-		'code_challenge'        => pkce_challenge( $verifier ),
-		'code_challenge_method' => 'S256',
+		'client_id'     => $settings[ $slug ]['client_id'],
+		'scope'         => scope( $slug, $provider ),
+		'response_type' => 'code',
+		'redirect_uri'  => redirect_uri( $slug ),
+		'state'         => $state,
 	);
+
+	if ( $provider['pkce'] ) {
+		$args['code_challenge']        = pkce_challenge( $verifier );
+		$args['code_challenge_method'] = 'S256';
+	}
 
 	// Slack lets us pin the workspace picker to a single team.
 	if ( 'slack' === $slug && ! empty( $settings['slack']['team_id'] ) ) {
@@ -243,18 +251,21 @@ function handle_callback( $slug, $provider ) {
 	delete_transient( 'clidp_state_' . $state );
 
 	$settings = settings();
-	$token    = wp_remote_post(
+	$body     = array(
+		'grant_type'    => 'authorization_code',
+		'code'          => isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : '',
+		'redirect_uri'  => redirect_uri( $slug ),
+		'client_id'     => $settings[ $slug ]['client_id'],
+		'client_secret' => $settings[ $slug ]['client_secret'],
+	);
+
+	$token = wp_remote_post(
 		$provider['token'],
 		array(
 			'timeout' => 15,
-			'body'    => array(
-				'grant_type'    => 'authorization_code',
-				'code'          => isset( $_GET['code'] ) ? sanitize_text_field( wp_unslash( $_GET['code'] ) ) : '',
-				'redirect_uri'  => redirect_uri( $slug ),
-				'client_id'     => $settings[ $slug ]['client_id'],
-				'client_secret' => $settings[ $slug ]['client_secret'],
-				'code_verifier' => isset( $flow['verifier'] ) ? $flow['verifier'] : '',
-			),
+			'body'    => $provider['pkce']
+				? array_merge( $body, array( 'code_verifier' => isset( $flow['verifier'] ) ? $flow['verifier'] : '' ) )
+				: $body,
 		)
 	);
 
