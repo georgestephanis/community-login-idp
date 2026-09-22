@@ -44,9 +44,12 @@ function providers() {
 			'token'     => 'https://slack.com/api/openid.connect.token',
 			'userinfo'  => 'https://slack.com/api/openid.connect.userInfo',
 			'scope'     => 'openid email profile',
-			// Slack's OIDC endpoints do not document PKCE: the authorize leg
-			// ignores code_challenge, and the token leg answers a request
-			// carrying code_verifier with {"ok":false,"error":"internal_error"}.
+			// Slack supports PKCE on its v2 OAuth endpoints -- the ones the
+			// app's OAuth & Permissions screen talks about -- but not on the
+			// OpenID Connect pair we use here, which documents neither
+			// code_challenge nor code_verifier. The authorize leg ignores the
+			// challenge and the token leg answers a request carrying the
+			// verifier with {"ok":false,"error":"internal_error"}.
 			'pkce'      => false,
 		),
 		'discord' => array(
