@@ -1,27 +1,46 @@
 .clidp-buttons {
 	margin: 1em 0 0;
 
-	.clidp-button {
+	// WordPress core styles the login buttons at `.wp-core-ui .button:hover`,
+	// which outweighs a bare `.clidp-button--slack`. Qualifying with the `a`
+	// wins without reaching for !important, and the hover states have to
+	// restate the background or core's near-white one shows through under
+	// our white text.
+	a.clidp-button {
 		display: block;
 		margin-bottom: 0.5em;
-		border-color: transparent;
-		color: #fff;
 		text-align: center;
 		text-decoration: none;
 
+		&,
 		&:hover,
 		&:focus {
+			border-color: transparent;
 			color: #fff;
+		}
+
+		&:hover,
+		&:focus {
 			filter: brightness(1.15);
 		}
 	}
 
-	.clidp-button--slack {
-		background: #4a154b;
+	a.clidp-button--slack {
+
+		&,
+		&:hover,
+		&:focus {
+			background: #4a154b;
+		}
 	}
 
-	.clidp-button--discord {
-		background: #5865f2;
+	a.clidp-button--discord {
+
+		&,
+		&:hover,
+		&:focus {
+			background: #5865f2;
+		}
 	}
 }
 
