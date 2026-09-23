@@ -75,9 +75,35 @@ On each sign-in, in order:
 1. **Existing link** — a WordPress user with `community_login_idp_<provider>_id` user meta matching the remote account ID. Logs them in.
 2. **Linking** — if the flow was started by someone already logged in (the **Link account** button on their profile), the remote account is attached to that user.
 3. **Verified email match** — only if *Automatically link to an existing account with the same verified email address* is enabled. **Off by default:** turning it on means anyone who controls that email address at the provider can sign in as the matching WordPress user, including an administrator. Enable it only if you trust the provider's email verification.
-4. **Registration** — if registration is enabled in the plugin settings, a new user is created with the site's default role. A verified email address is required.
+4. **Registration** — if registration is enabled in the plugin settings, a new user is created with the site's default role, or with a role from the *Role mapping* field below. A verified email address is required.
 
 Otherwise the attempt is rejected with a message on the login form.
+
+## Role mapping
+
+Each provider has an optional **Role mapping** field: one rule per line, written as `remote role = WordPress role`. Blank lines and lines starting with `#` are ignored. The first line that matches wins, so put the most privileged rule at the top; anyone matching nothing gets the site's default role.
+
+```
+owner = editor
+admin = editor
+member = contributor
+```
+
+**Slack** has no roles, so the left-hand side is one of `owner`, `admin`, `guest`, `single_channel_guest`, `bot` or `member`. These overlap — an owner is also an admin, and everyone is a `member` — which is what makes the ordering useful. Reading them needs the **App token**; without one nobody matches and everyone gets the default role.
+
+**Discord** uses role IDs on the left. Turn on Developer Mode, then right-click a role in **Server Settings → Roles** and choose **Copy Role ID**. This needs the **Server ID** to be set, and adds the `guilds.members.read` permission to the consent screen people see.
+
+### What this deliberately does not do
+
+The mapping applies **only when an account is first created**. Roles are never touched on later sign-ins. That means:
+
+- Someone who loses a role in Slack or Discord keeps the WordPress role they were given. Change it in WordPress.
+- A role you assign by hand in WordPress is never overwritten by the provider.
+- The provider cannot demote anyone, so a compromised Slack or Discord account cannot take away access here.
+
+It also means the mapping is one-way and drifts over time, which is the trade. Syncing on every login would keep the two in step, but it would also hand your workspace's administrators the ability to change WordPress roles on demand — see [#11](https://github.com/georgestephanis/community-login-idp/issues/11).
+
+Mapping anything to **Administrator** gives whoever administers your workspace or server full control of this site. There is nothing stopping you, but consider mapping to Editor and promoting by hand.
 
 ## Linking accounts from the profile screen
 

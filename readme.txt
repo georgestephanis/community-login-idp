@@ -62,6 +62,14 @@ The App token is the *app's* own token — a bot token, from **OAuth & Permissio
 
 It is checked against the provider when you save, and the result is shown under the field.
 
+= How do I give people different WordPress roles? =
+
+Each provider has a Role mapping field. Put one rule per line, written as `remote role = WordPress role`, most privileged first — the first matching line wins, and anyone matching nothing gets the site's default role.
+
+For Slack the left-hand side is one of `owner`, `admin`, `guest`, `single_channel_guest`, `bot` or `member`, and reading them needs the App token. For Discord it is a role ID, copied from Server Settings, and it needs the Server ID to be set.
+
+The mapping only applies when an account is first created. Roles are never changed on later sign-ins, so the provider can never demote a WordPress user — and a role you set by hand in WordPress is never overwritten.
+
 = Where do I find my Slack Workspace ID? =
 
 It is the `T…` value. The quickest way: open Slack in a browser and read it out of the URL — `app.slack.com/client/T0123456789/…`. The part starting with `T` is the workspace ID.
