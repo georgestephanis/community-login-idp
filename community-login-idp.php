@@ -88,6 +88,7 @@ function settings() {
 			'client_secret' => '',
 			'team_id'       => '',
 			'app_token'     => '',
+			'role_map'      => '',
 		);
 	}
 
@@ -167,7 +168,11 @@ function scope( $slug, $provider ) {
 	$settings = settings();
 
 	if ( 'discord' === $slug && ! empty( $settings['discord']['team_id'] ) ) {
-		return $provider['scope'] . ' guilds';
+		// guilds.members.read is only asked for when a role map needs it, since
+		// it reads the person's roles in the server and not just membership.
+		return empty( $settings['discord']['role_map'] )
+			? $provider['scope'] . ' guilds'
+			: $provider['scope'] . ' guilds guilds.members.read';
 	}
 
 	return $provider['scope'];
@@ -317,7 +322,7 @@ function handle_callback( $slug, $provider ) {
 		fail( 'blocked', $flow['redirect_to'], $identity['sub'] );
 	}
 
-	$user_id = resolve_user( $slug, $identity, (int) $flow['link_user'] );
+	$user_id = resolve_user( $slug, $identity, (int) $flow['link_user'], $token['access_token'] );
 
 	if ( is_wp_error( $user_id ) ) {
 		fail( $user_id->get_error_code(), $flow['redirect_to'], $user_id->get_error_message() );
@@ -388,6 +393,178 @@ function in_discord_guild( $access_token, $guild_id ) {
 	}
 
 	return in_array( (string) $guild_id, array_column( $guilds, 'id' ), true );
+}
+
+/**
+ * The person's roles on the provider's side, as strings the role map can match.
+ *
+ * Discord returns role IDs. Slack has no roles, so its workspace flags are
+ * flattened into the pseudo-roles below.
+ *
+ * Fails open with an empty array rather than a WP_Error: a lookup that cannot
+ * be completed drops the new account back to the site's default role, which is
+ * the safe direction to fail in. Sign-in itself is gated by team_id, not here.
+ *
+ * @param string $slug         Provider slug.
+ * @param string $access_token The user's access token.
+ * @param array  $identity     Normalized identity.
+ * @return string[]
+ */
+function provider_roles( $slug, $access_token, $identity ) {
+	$settings = settings();
+
+	if ( 'discord' === $slug ) {
+		// Roles are per-server, so there is nothing to ask about without one.
+		if ( empty( $settings['discord']['team_id'] ) ) {
+			return array();
+		}
+
+		$response = wp_remote_get(
+			'https://discord.com/api/users/@me/guilds/' . rawurlencode( $settings['discord']['team_id'] ) . '/member',
+			array(
+				'timeout' => 15,
+				'headers' => array( 'Authorization' => 'Bearer ' . $access_token ),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return array();
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		return isset( $body['roles'] ) && is_array( $body['roles'] )
+			? array_map( 'strval', $body['roles'] )
+			: array();
+	}
+
+	// Slack's flags are not in the OpenID profile, so this one needs the bot token.
+	$token = app_token( 'slack' );
+
+	if ( '' === $token ) {
+		return array();
+	}
+
+	$response = wp_remote_get(
+		add_query_arg( 'user', rawurlencode( $identity['sub'] ), 'https://slack.com/api/users.info' ),
+		array(
+			'timeout' => 15,
+			'headers' => array( 'Authorization' => 'Bearer ' . $token ),
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		return array();
+	}
+
+	$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+	return empty( $body['ok'] ) || empty( $body['user'] ) ? array() : slack_role_tags( $body['user'] );
+}
+
+/**
+ * Flattens a Slack users.info record into role-ish tags.
+ *
+ * Tags overlap on purpose -- an owner is also an admin, an ultra-restricted
+ * guest is also restricted -- because the role map is ordered and the first
+ * matching line wins, so overlapping tags let an admin be as specific or as
+ * broad as they like. `member` is always present as a catch-all.
+ *
+ * @param array $user The `user` object from users.info.
+ * @return string[]
+ */
+function slack_role_tags( $user ) {
+	$flags = array(
+		'owner'                => 'is_owner',
+		'admin'                => 'is_admin',
+		'single_channel_guest' => 'is_ultra_restricted',
+		'guest'                => 'is_restricted',
+		'bot'                  => 'is_bot',
+	);
+
+	$tags = array();
+
+	foreach ( $flags as $tag => $flag ) {
+		if ( ! empty( $user[ $flag ] ) ) {
+			$tags[] = $tag;
+		}
+	}
+
+	$tags[] = 'member';
+
+	return $tags;
+}
+
+/**
+ * Parses the role map textarea into `provider role => WordPress role` pairs.
+ *
+ * One `remote = wp_role` per line; blank lines and `#` comments are ignored.
+ * Order is preserved because it is what decides ties.
+ *
+ * @param string $map Raw textarea contents.
+ * @return array<string, string>
+ */
+function parse_role_map( $map ) {
+	$pairs = array();
+
+	foreach ( preg_split( '/\R/', (string) $map ) as $line ) {
+		$line = trim( $line );
+
+		if ( '' === $line || '#' === $line[0] || false === strpos( $line, '=' ) ) {
+			continue;
+		}
+
+		list( $from, $to ) = array_map( 'trim', explode( '=', $line, 2 ) );
+
+		if ( '' !== $from && '' !== $to && ! isset( $pairs[ $from ] ) ) {
+			$pairs[ $from ] = $to;
+		}
+	}
+
+	return $pairs;
+}
+
+/**
+ * The WordPress role for a set of provider roles, or '' for none.
+ *
+ * First matching line wins, so the most privileged mapping goes at the top.
+ *
+ * @param string   $map   Raw role map.
+ * @param string[] $roles Provider roles.
+ * @return string
+ */
+function map_role( $map, $roles ) {
+	foreach ( parse_role_map( $map ) as $from => $to ) {
+		if ( in_array( $from, $roles, true ) ) {
+			return $to;
+		}
+	}
+
+	return '';
+}
+
+/**
+ * The role a newly created account should get, having checked it still exists.
+ *
+ * A map pointing at a role that has since been deleted -- or misspelled in the
+ * first place -- falls back to the site default rather than creating a user
+ * with no capabilities at all.
+ *
+ * @param string $slug         Provider slug.
+ * @param string $access_token The user's access token.
+ * @param array  $identity     Normalized identity.
+ * @return string Role slug, or '' to use the site default.
+ */
+function mapped_role( $slug, $access_token, $identity ) {
+	$settings = settings();
+
+	if ( empty( $settings[ $slug ]['role_map'] ) ) {
+		return '';
+	}
+
+	$role = map_role( $settings[ $slug ]['role_map'], provider_roles( $slug, $access_token, $identity ) );
+
+	return $role && get_role( $role ) ? $role : '';
 }
 
 /**
@@ -467,9 +644,11 @@ function normalize_identity( $slug, $data ) {
  * @param string $slug      Provider slug.
  * @param array  $identity  Normalized identity.
  * @param int    $link_user User ID that started the flow while logged in, if any.
+ * @param string $access_token The user's access token, used only to look up a
+ *                              mapped role when an account is actually created.
  * @return int|\WP_Error
  */
-function resolve_user( $slug, $identity, $link_user = 0 ) {
+function resolve_user( $slug, $identity, $link_user = 0, $access_token = '' ) {
 	$settings = settings();
 
 	$existing = get_users(
@@ -520,20 +699,25 @@ function resolve_user( $slug, $identity, $link_user = 0 ) {
 		$login = $base . $suffix;
 	}
 
+	// Only ever on creation. Nothing here touches the role of an account that
+	// already exists, so a provider cannot demote a WordPress user.
+	$role = mapped_role( $slug, $access_token, $identity );
+	$role = $role ? $role : get_option( 'default_role' );
+
 	$user_id = wp_insert_user(
 		array(
 			'user_login'   => $login,
 			'user_email'   => $identity['email'],
 			'user_pass'    => wp_generate_password( 32 ),
 			'display_name' => $identity['name'] ? $identity['name'] : $login,
-			'role'         => get_option( 'default_role' ),
+			'role'         => $role,
 		)
 	);
 
 	// On multisite wp_insert_user() creates a network user with no role on this
 	// site, so they would log in to nothing. Add them to the current site.
 	if ( ! is_wp_error( $user_id ) && is_multisite() && ! is_user_member_of_blog( $user_id ) ) {
-		add_user_to_blog( get_current_blog_id(), $user_id, get_option( 'default_role' ) );
+		add_user_to_blog( get_current_blog_id(), $user_id, $role );
 	}
 
 	return $user_id;
@@ -1416,6 +1600,7 @@ function sanitize_settings( $input ) {
 			'client_secret' => isset( $input[ $slug ]['client_secret'] ) ? sanitize_text_field( $input[ $slug ]['client_secret'] ) : '',
 			'team_id'       => isset( $input[ $slug ]['team_id'] ) ? sanitize_text_field( $input[ $slug ]['team_id'] ) : '',
 			'app_token'     => isset( $input[ $slug ]['app_token'] ) ? trim( sanitize_text_field( $input[ $slug ]['app_token'] ) ) : '',
+			'role_map'      => isset( $input[ $slug ]['role_map'] ) ? sanitize_textarea_field( $input[ $slug ]['role_map'] ) : '',
 		);
 
 		// Check it while someone is standing here able to fix it, rather than
@@ -1604,6 +1789,26 @@ function render_settings_page() {
 								?>
 								<br>
 								<?php esc_html_e( 'It is checked against the provider when you save.', 'community-login-idp' ); ?>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="<?php echo esc_attr( "$slug-role-map" ); ?>"><?php esc_html_e( 'Role mapping', 'community-login-idp' ); ?></label></th>
+						<td>
+							<textarea id="<?php echo esc_attr( "$slug-role-map" ); ?>" class="large-text code" rows="4" name="<?php echo esc_attr( OPTION . "[$slug][role_map]" ); ?>" placeholder="<?php echo esc_attr( 'slack' === $slug ? "admin = editor\nmember = contributor" : '123456789012345678 = editor' ); ?>"><?php echo esc_textarea( $settings[ $slug ]['role_map'] ); ?></textarea>
+							<p class="description">
+								<?php esc_html_e( 'Optional. One rule per line, written as remote role = WordPress role. The first line that matches wins, so put the most privileged one at the top. Anyone matching nothing gets the site’s default role.', 'community-login-idp' ); ?>
+								<br>
+								<?php
+								echo esc_html(
+									'slack' === $slug
+										? __( 'Slack has no roles, so the left-hand side is one of: owner, admin, guest, single_channel_guest, bot, member. Needs the app token above — without it nobody matches.', 'community-login-idp' )
+										: __( 'The left-hand side is a Discord role ID: turn on Developer Mode, then right-click the role in Server Settings → Roles and choose Copy Role ID. Needs the Server ID above, and adds the “guilds.members.read” permission to the consent screen.', 'community-login-idp' )
+								);
+								?>
+								<br>
+								<strong><?php esc_html_e( 'This applies only when an account is first created.', 'community-login-idp' ); ?></strong>
+								<?php esc_html_e( 'Roles are never changed on later sign-ins, so losing a role on the provider does not remove it here — and mapping anything to Administrator hands full control of this site to whoever administers your workspace or server.', 'community-login-idp' ); ?>
 							</p>
 						</td>
 					</tr>

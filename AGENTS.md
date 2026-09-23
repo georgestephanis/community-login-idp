@@ -29,6 +29,7 @@ There is no `includes/`, no class hierarchy, and no autoloader. **Keep it that w
 - The blocklist is the one other option, `community_login_idp_blocklist`, and it is moderation data rather than settings. It has to live outside the settings option because `sanitize_settings()` rebuilds that array from the submitted form, which would wipe anything the form does not render.
 - Remote account IDs live in user meta `community_login_idp_<provider>_id`; the cached avatar URL in `community_login_idp_avatar`. Add anything new to `uninstall.php`.
 - `app_token` is the provider's own bot token, read through `app_token()`. It is for lookups the sign-in flow cannot make. The *user's* access token is still discarded at the end of `handle_callback()` and must stay that way — storing per-user tokens is a much larger question than storing one per site.
+- `role_map` is the per-provider `remote role = WordPress role` textarea, parsed by `parse_role_map()`. It is read **only** at account creation, in `resolve_user()`. Do not apply it on later sign-ins without being asked: that turns the provider into something that can demote WordPress users, and is the whole reason the feature is creation-only.
 - `team_id` is the per-provider membership restriction: a Slack workspace, a Discord server. Same key, different label on the settings screen.
 
 ## Adding a provider
